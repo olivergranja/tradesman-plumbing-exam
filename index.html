@@ -7,6 +7,20 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root{--bg:#0d1117;--surface:#161b22;--card:#1c2330;--border:#30363d;--accent:#f97316;--accent2:#fb923c;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--text:#e6edf3;--muted:#8b949e;--radius:12px}
+  #screen-password{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px}
+  .pw-box{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:48px 40px;text-align:center;max-width:420px;width:100%}
+  .pw-box .lock-icon{font-size:3rem;margin-bottom:16px}
+  .pw-box h2{font-family:'Bebas Neue',sans-serif;font-size:2rem;letter-spacing:.04em;color:var(--accent);margin-bottom:8px}
+  .pw-box p{color:var(--muted);font-size:13px;margin-bottom:28px;line-height:1.6}
+  .pw-input-wrap{position:relative;margin-bottom:12px}
+  .pw-input{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:14px 48px 14px 18px;font-family:'DM Mono',monospace;font-size:1rem;color:var(--text);letter-spacing:.12em;outline:none;transition:border-color .2s}
+  .pw-input:focus{border-color:var(--accent)}
+  .pw-input.error{border-color:var(--red);animation:shake .4s ease}
+  @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+  .pw-toggle{position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:4px}
+  .pw-toggle:hover{color:var(--text)}
+  .pw-error{color:var(--red);font-size:12px;margin-bottom:14px;min-height:18px;font-family:'DM Mono',monospace}
+  .pw-hint{color:var(--muted);font-size:11px;margin-top:16px}
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 60px}
   header{width:100%;max-width:780px;display:flex;flex-direction:column;align-items:center;gap:6px;margin-bottom:32px}
@@ -96,6 +110,23 @@
 </style>
 </head>
 <body>
+
+<!-- PASSWORD GATE -->
+<div id="screen-password">
+  <div class="pw-box">
+    <div class="lock-icon">🔐</div>
+    <h2>ACCESS REQUIRED</h2>
+    <p>This exam is restricted.<br>Enter your access code to continue.</p>
+    <div class="pw-input-wrap">
+      <input class="pw-input" id="pw-input" type="password" placeholder="Enter access code" onkeydown="if(event.key==='Enter')checkPassword()">
+      <button class="pw-toggle" onclick="togglePwVisibility()" id="pw-toggle-btn">👁</button>
+    </div>
+    <div class="pw-error" id="pw-error"></div>
+    <button class="btn-primary" onclick="checkPassword()" style="width:100%;margin-top:4px">ENTER →</button>
+    <p class="pw-hint">Contact the exam administrator if you don't have an access code.</p>
+  </div>
+</div>
+
 <header>
   <div class="badge">Texas State Board of Plumbing Examiners</div>
   <h1>TRADESMAN <span>LICENSE</span></h1>
@@ -348,6 +379,28 @@ function showResults(){
   }).join('');
 }
 function restartExam(){document.getElementById('screen-result').style.display='none';document.getElementById('screen-start').style.display='block';window.scrollTo(0,0);}
+
+function checkPassword(){
+  const input=document.getElementById('pw-input').value;
+  const err=document.getElementById('pw-error');
+  if(input==='RoundRock2026'){
+    document.getElementById('screen-password').style.display='none';
+    err.textContent='';
+  } else {
+    err.textContent='❌ Incorrect access code. Try again.';
+    const inp=document.getElementById('pw-input');
+    inp.classList.add('error');
+    inp.value='';
+    setTimeout(()=>inp.classList.remove('error'),500);
+  }
+}
+function togglePwVisibility(){
+  const inp=document.getElementById('pw-input');
+  const btn=document.getElementById('pw-toggle-btn');
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
+}
+
 </script>
 </body>
 </html>
