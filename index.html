@@ -6,7 +6,34 @@
 <title>Texas Plumbing Prep – Tradesman License Practice Exam</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
-  :root{--bg:#0d1117;--surface:#161b22;--card:#1c2330;--border:#30363d;--accent:#f97316;--accent2:#fb923c;--green:#22c55e;--red:#ef4444;--yellow:#eab308;--text:#e6edf3;--muted:#8b949e;--radius:12px}
+  :root{
+    /* Theme tokens (default = dark) */
+    --bg:#0d1117;--surface:#161b22;--card:#1c2330;--border:#30363d;
+    --accent:#f97316;--accent2:#fb923c;
+    --green:#22c55e;--red:#ef4444;--yellow:#eab308;
+    --text:#e6edf3;--muted:#8b949e;
+    --shadow:rgba(0,0,0,.5);
+    --pulse-green:rgba(34,197,94,.1);--pulse-green-br:rgba(34,197,94,.08);
+    --pulse-red:rgba(239,68,68,.1);--pulse-red-br:rgba(239,68,68,.08);
+    --pulse-accent:rgba(249,115,22,.08);--pulse-accent-br:rgba(249,115,22,.12);
+    --accent-soft:rgba(249,115,22,.15);--accent-soft-br:rgba(249,115,22,.25);
+    --trap-soft:rgba(239,68,68,.15);--trap-soft-br:rgba(239,68,68,.25);
+    --overlay-bg:rgba(0,0,0,.78);
+    --radius:12px
+  }
+  [data-theme="light"]{
+    --bg:#f8f6f1;--surface:#ffffff;--card:#ffffff;--border:#e5e7eb;
+    --accent:#ea580c;--accent2:#f97316;
+    --green:#16a34a;--red:#dc2626;--yellow:#ca8a04;
+    --text:#1a1f2e;--muted:#6b7280;
+    --shadow:rgba(30,40,60,.12);
+    --pulse-green:rgba(22,163,74,.12);--pulse-green-br:rgba(22,163,74,.07);
+    --pulse-red:rgba(220,38,38,.1);--pulse-red-br:rgba(220,38,38,.06);
+    --pulse-accent:rgba(234,88,12,.08);--pulse-accent-br:rgba(234,88,12,.12);
+    --accent-soft:rgba(234,88,12,.12);--accent-soft-br:rgba(234,88,12,.3);
+    --trap-soft:rgba(220,38,38,.1);--trap-soft-br:rgba(220,38,38,.3);
+    --overlay-bg:rgba(40,45,55,.55)
+  }
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px 60px}
   header{width:100%;max-width:780px;display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:32px}
@@ -195,9 +222,66 @@
     .option-btn{font-size:.84rem;padding:10px}
   }
 
+
+  /* ══ THEME TRANSITIONS ══ */
+  body,.question-card,#screen-start,.result-hero,.review-item,.option-btn,
+  .info-box,.exam-card,.stat-box,#timer-bar,.timeout-box,.hero-logo,.topic-tag,
+  .badge,.section-pill,.trap-pill,.feedback-box,.btn-prev,.page-footer{
+    transition:background-color .3s ease,border-color .3s ease,color .3s ease,box-shadow .3s ease
+  }
+
+  /* ══ THEME TOGGLE BUTTON ══ */
+  #theme-toggle{
+    position:fixed;top:20px;right:20px;z-index:500;
+    width:44px;height:44px;border-radius:50%;
+    background:var(--card);border:1.5px solid var(--border);
+    color:var(--text);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    font-size:18px;line-height:1;
+    box-shadow:0 4px 12px var(--shadow);
+    transition:all .25s ease
+  }
+  #theme-toggle:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 16px var(--shadow)}
+  #theme-toggle:active{transform:translateY(0)}
+  #theme-toggle .icon-sun,#theme-toggle .icon-moon{
+    position:absolute;transition:opacity .25s ease,transform .35s ease
+  }
+  [data-theme="light"] #theme-toggle .icon-sun{opacity:0;transform:rotate(90deg) scale(.5)}
+  [data-theme="light"] #theme-toggle .icon-moon{opacity:1;transform:rotate(0) scale(1)}
+  :root:not([data-theme="light"]) #theme-toggle .icon-sun{opacity:1;transform:rotate(0) scale(1)}
+  :root:not([data-theme="light"]) #theme-toggle .icon-moon{opacity:0;transform:rotate(-90deg) scale(.5)}
+
+  @media (max-width:640px){
+    #theme-toggle{top:14px;right:14px;width:40px;height:40px;font-size:16px}
+  }
+
+  /* Light-theme specific tweaks — logo gets subtle shadow instead of drop shadow */
+  [data-theme="light"] .hero-logo{filter:drop-shadow(0 4px 12px rgba(30,40,60,.15))}
+  [data-theme="light"] .option-btn:hover:not(:disabled){background:var(--accent-soft)}
+  [data-theme="light"] .exam-card:hover{background:var(--accent-soft)}
+  [data-theme="light"] #timer-bar{background:rgba(255,255,255,.92)}
+  [data-theme="light"] #timeout-overlay{background:var(--overlay-bg);backdrop-filter:blur(6px)}
+
 </style>
+<script>
+  // Early theme detection — runs before page renders to avoid flash
+  (function(){
+    try {
+      var saved = localStorage.getItem('tpp-theme');
+      var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+      var theme = saved || (prefersLight ? 'light' : 'dark');
+      if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    } catch(e){}
+  })();
+</script>
 </head>
 <body>
+
+<!-- THEME TOGGLE -->
+<button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle light/dark mode" title="Toggle theme">
+  <span class="icon-sun">☀️</span>
+  <span class="icon-moon">🌙</span>
+</button>
 
 <header>
   <div class="hero-logo">
@@ -659,6 +743,29 @@ function restartExam() {
   btn.style.cursor = 'not-allowed';
   btn.textContent = 'SELECT AN EXAM TO BEGIN';
   window.scrollTo(0, 0);
+}
+
+function toggleTheme() {
+  var root = document.documentElement;
+  var current = root.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+  var next = current === 'light' ? 'dark' : 'light';
+  if (next === 'light') {
+    root.setAttribute('data-theme', 'light');
+  } else {
+    root.removeAttribute('data-theme');
+  }
+  try { localStorage.setItem('tpp-theme', next); } catch(e){}
+}
+// Listen for system theme changes (only if user hasn't manually chosen)
+if (window.matchMedia) {
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e){
+    try {
+      if (!localStorage.getItem('tpp-theme')) {
+        if (e.matches) document.documentElement.setAttribute('data-theme', 'light');
+        else document.documentElement.removeAttribute('data-theme');
+      }
+    } catch(err){}
+  });
 }
 </script>
 </body>
