@@ -262,6 +262,52 @@
   [data-theme="light"] #timer-bar{background:rgba(255,255,255,.92)}
   [data-theme="light"] #timeout-overlay{background:var(--overlay-bg);backdrop-filter:blur(6px)}
 
+
+  /* ══ ABOUT SECTION ══ */
+  .about-section{width:100%;max-width:780px;margin-top:36px}
+  .about-card{background:var(--card);border:1px solid var(--border);border-radius:16px;overflow:hidden;transition:border-color .2s}
+  .about-card:hover{border-color:var(--accent)}
+  .about-card[open]{border-color:rgba(249,115,22,.35)}
+  .about-summary{list-style:none;cursor:pointer;padding:20px 28px;display:flex;align-items:center;gap:14px;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.05em;color:var(--accent);user-select:none;transition:background .2s}
+  .about-summary::-webkit-details-marker{display:none}
+  .about-summary:hover{background:var(--accent-soft)}
+  .about-summary-icon{font-size:1.3rem;flex-shrink:0}
+  .about-summary-text{flex:1}
+  .about-summary-chevron{font-size:1.1rem;color:var(--muted);transition:transform .3s ease,color .2s;flex-shrink:0}
+  .about-card[open] .about-summary-chevron{transform:rotate(180deg);color:var(--accent)}
+  .about-content{padding:4px 32px 28px;animation:aboutSlide .3s ease}
+  @keyframes aboutSlide{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  .about-subtitle{font-family:'DM Sans',sans-serif;font-size:.95rem;font-weight:700;color:var(--text);margin:22px 0 10px;letter-spacing:.01em}
+  .about-card p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:12px}
+  .about-card p strong{color:var(--text);font-weight:600}
+  .about-list{list-style:none;padding:0;margin:6px 0 12px}
+  .about-list li{color:var(--muted);font-size:14px;line-height:1.8;padding-left:22px;position:relative}
+  .about-list li::before{content:'▸';position:absolute;left:4px;color:var(--accent);font-weight:700}
+  .about-list li strong{color:var(--text)}
+  .about-source{font-size:12px !important;font-style:italic;margin-top:16px !important;padding-top:14px;border-top:1px solid var(--border);text-align:center}
+  .about-source a{color:var(--accent);text-decoration:none;font-weight:600}
+  .about-source a:hover{text-decoration:underline}
+
+  /* ══ SUPPORT SECTION ══ */
+  .support-section{width:100%;max-width:780px;margin-top:20px;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px 32px;text-align:center}
+  .support-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.05em;color:var(--accent);margin-bottom:8px}
+  .support-text{color:var(--muted);font-size:13px;line-height:1.6;margin-bottom:18px;max-width:520px;margin-left:auto;margin-right:auto}
+  .support-buttons{display:flex;align-items:center;justify-content:center;gap:14px;flex-wrap:wrap}
+  .btn-paypal{display:inline-flex;align-items:center;gap:10px;background:#0070ba;color:#fff;font-family:'DM Sans',sans-serif;font-size:.9rem;font-weight:700;padding:12px 22px;border-radius:9px;text-decoration:none;transition:background .2s,transform .15s,box-shadow .2s;box-shadow:0 3px 10px rgba(0,112,186,.25)}
+  .btn-paypal:hover{background:#005a9a;transform:translateY(-2px);box-shadow:0 5px 14px rgba(0,112,186,.35)}
+  .btn-paypal svg{flex-shrink:0}
+  .support-handle{font-family:'DM Mono',monospace;font-size:13px;color:var(--muted);padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:99px}
+
+  @media (max-width:640px){
+    .about-summary{padding:16px 20px;font-size:1.15rem;gap:10px}
+    .about-content{padding:4px 20px 22px}
+    .about-subtitle{font-size:.9rem;margin:18px 0 8px}
+    .about-card p,.about-list li{font-size:13px}
+    .support-section{padding:22px 20px}
+    .support-buttons{flex-direction:column;gap:10px}
+    .btn-paypal{width:100%;justify-content:center}
+  }
+
 </style>
 <script>
   // Early theme detection — runs before page renders to avoid flash
@@ -368,6 +414,50 @@
     <button class="btn-primary" onclick="showResults()">VIEW RESULTS</button>
   </div>
 </div>
+
+<!-- ABOUT SECTION (COLLAPSIBLE) -->
+<section class="about-section">
+  <details class="about-card" id="about-details">
+    <summary class="about-summary">
+      <span class="about-summary-icon">📖</span>
+      <span class="about-summary-text">ABOUT THIS PROJECT</span>
+      <span class="about-summary-chevron" aria-hidden="true">▾</span>
+    </summary>
+    <div class="about-content">
+    <p>Hi, I'm <strong>Oliver Granja</strong>, a candidate pursuing my <strong>Tradesman Plumber-Limited License</strong> in Texas. I built this practice exam as a tool to help myself study — and to share it with other aspiring plumbers who want to practice for the theoretical portion of the exam and pass on their first attempt.</p>
+
+    <h4 class="about-subtitle">⚠️ Important Disclaimer</h4>
+    <p>This website is an <strong>independent practice tool</strong> and is <strong>NOT affiliated with, endorsed by, or connected to the Texas State Board of Plumbing Examiners (TSBPE)</strong> or any state agency. It does <strong>NOT replace the official training required by law</strong> to qualify for the Tradesman Plumber-Limited Examination.</p>
+
+    <h4 class="about-subtitle">📚 About the Official Exam</h4>
+    <p>According to the <strong>Texas State Board of Plumbing Examiners (TSBPE)</strong>, applicants for the Tradesman Plumber-Limited License must complete <strong>24 hours of classroom training</strong> through a TSBPE-approved course provider, which includes:</p>
+    <ul class="about-list">
+      <li>A <strong>6-hour Continuing Professional Education (CPE)</strong> course</li>
+      <li>The <strong>OSHA 10-Hour Outreach Training</strong></li>
+      <li><strong>8 hours of training</strong> on the International Residential Code (IRC) and/or the Uniform Plumbing Code (UPC)</li>
+    </ul>
+    <p>Additional requirements include being registered as a Plumber's Apprentice in Texas, having at least <strong>4,000 hours of documented plumbing experience</strong>, submitting fingerprints, and paying the exam fee. The written exam is <strong>closed book</strong> and the minimum passing score is <strong>70%</strong>.</p>
+
+    <h4 class="about-subtitle">🎯 Purpose of This Site</h4>
+    <p>The goal is simple: to offer a free, convenient, and well-organized way to practice exam-style questions based on core plumbing code concepts. Use it as a <strong>complement</strong> to — never as a replacement for — your official TSBPE-approved training.</p>
+
+    <p class="about-source">For authoritative and current information, visit the official TSBPE website: <a href="https://tsbpe.texas.gov" target="_blank" rel="noopener">tsbpe.texas.gov</a></p>
+    </div>
+  </details>
+</section>
+
+<!-- SUPPORT SECTION -->
+<section class="support-section">
+  <h3 class="support-title">💛 Support This Project</h3>
+  <p class="support-text">If this practice exam helps you prepare for your Tradesman license, consider supporting the project so I can keep it online and add more questions.</p>
+  <div class="support-buttons">
+    <a href="https://paypal.me/OliverGranja" target="_blank" rel="noopener" class="btn-paypal">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.082-7.569 6.082h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.772-4.471z"/></svg>
+      Donate via PayPal
+    </a>
+    <span class="support-handle">@OliverGranja</span>
+  </div>
+</section>
 
 <div class="page-footer">
   <p>© 2025 <span>Oliver Granja – ViscaCode</span> · All rights reserved</p>
@@ -561,7 +651,75 @@ function buildExam(seed, trapIndices) {
     regular.push(...seededShuffle(pool, seed + range[0]).slice(0, count));
   });
   // Combine regular + traps, then shuffle full exam so traps are interspersed
-  return seededShuffle([...regular, ...trapIndices], seed * 7);
+  const indices = seededShuffle([...regular, ...trapIndices], seed * 7);
+  // Now shuffle the OPTIONS of each question so correct answers alternate across A/B/C/D
+  return buildShuffledQuestions(indices, seed);
+}
+
+// Shuffle the 4 options for each question, guaranteeing:
+//  - No more than 2 consecutive questions share the same correct-letter index
+//  - Final distribution across A/B/C/D stays reasonably balanced (~20 per letter for 80Q)
+function buildShuffledQuestions(indices, seed) {
+  let s = (seed * 13 + 7) >>> 0;
+  const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s; };
+
+  const result = [];
+  const letterCount = [0, 0, 0, 0];
+  let prevLetter = -1;
+  let prevPrevLetter = -1;
+  const idealPerLetter = Math.ceil(indices.length / 4);
+
+  for (let qi = 0; qi < indices.length; qi++) {
+    const original = BANK[indices[qi]];
+    // Try up to 24 permutations; pick first that satisfies constraints
+    const perms = [];
+    // Generate all 24 permutations of [0,1,2,3]
+    const base = [0, 1, 2, 3];
+    const permsAll = [];
+    const perm = (a, l, r) => {
+      if (l === r) { permsAll.push([...a]); return; }
+      for (let i = l; i <= r; i++) {
+        [a[l], a[i]] = [a[i], a[l]];
+        perm(a, l + 1, r);
+        [a[l], a[i]] = [a[i], a[l]];
+      }
+    };
+    perm([...base], 0, 3);
+
+    // Shuffle the list of 24 perms using seed, so each question tries them in a random order
+    for (let i = permsAll.length - 1; i > 0; i--) {
+      const j = rng() % (i + 1);
+      [permsAll[i], permsAll[j]] = [permsAll[j], permsAll[i]];
+    }
+
+    let chosen = null;
+    for (const p of permsAll) {
+      // p[newIndex] = oldIndex; so new correct letter = p.indexOf(original.c)
+      const newCorrect = p.indexOf(original.c);
+      // Constraint 1: no 3-in-a-row same letter
+      if (newCorrect === prevLetter && newCorrect === prevPrevLetter) continue;
+      // Constraint 2: soft balance — don't exceed ideal+2 per letter
+      if (letterCount[newCorrect] >= idealPerLetter + 2) continue;
+      chosen = p;
+      break;
+    }
+    // Fallback if no perm satisfied (shouldn't happen, but safe)
+    if (!chosen) chosen = permsAll[0];
+
+    const newOpts = chosen.map(oldIdx => original.o[oldIdx]);
+    const newCorrect = chosen.indexOf(original.c);
+    result.push({
+      s: original.s,
+      q: original.q,
+      o: newOpts,
+      c: newCorrect,
+      e: original.e
+    });
+    letterCount[newCorrect]++;
+    prevPrevLetter = prevLetter;
+    prevLetter = newCorrect;
+  }
+  return result;
 }
 
 const EXAMS = [
@@ -595,7 +753,7 @@ function selectExam(n) {
 
 function startExam() {
   if (!selectedExam) return;
-  examQuestions = EXAMS[selectedExam - 1].map(i => BANK[i]);
+  examQuestions = EXAMS[selectedExam - 1];
   answers = new Array(examQuestions.length).fill(null);
   current = 0;
   secondsLeft = TOTAL_TIME;
