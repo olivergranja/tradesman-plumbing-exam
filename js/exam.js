@@ -16,7 +16,7 @@
   // ──────────────────────────────────────────────────────────────
   // CONFIGURATION
   // ──────────────────────────────────────────────────────────────
-  const TOTAL_TIME = 300;              // 5 minutes in seconds
+  const TIME_PER_QUESTION = 300;       // 5 minutes per question (in seconds)
   const TOTAL_QUESTIONS = 80;
   const POINTS_PER_Q = 100 / TOTAL_QUESTIONS; // 1.25 pts each
   const PASS_THRESHOLD = 70;           // points needed to pass
@@ -30,7 +30,7 @@
   let currentIndex = 0;
   let userAnswers = [];
   let timerInterval = null;
-  let secondsLeft = TOTAL_TIME;
+  let secondsLeft = TIME_PER_QUESTION;
   let examsCache = null;
 
   // ──────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@
     examQuestions = getExams()[selectedExam - 1];
     userAnswers = new Array(examQuestions.length).fill(null);
     currentIndex = 0;
-    secondsLeft = TOTAL_TIME;
+    secondsLeft = TIME_PER_QUESTION;
 
     document.getElementById('screen-start').style.display = 'none';
     document.getElementById('screen-quiz').style.display = 'block';
@@ -210,7 +210,10 @@
   }
 
   // ──────────────────────────────────────────────────────────────
-  // TIMER
+  // TIMER (per-question: 5 minutes each)
+  //   - Resets to 5:00 on every new question
+  //   - Pauses when the user selects an answer (to read feedback)
+  //   - If time runs out, marks the question as unanswered and auto-advances
   // ──────────────────────────────────────────────────────────────
 
   function startTimer() {
@@ -221,9 +224,45 @@
       updateTimerDisplay();
       if (secondsLeft <= 0) {
         clearInterval(timerInterval);
-        document.getElementById('timeout-overlay').classList.add('show');
+        handleQuestionTimeout();
       }
     }, 1000);
+  }
+
+  /**
+   * Reset timer to full time and start counting again.
+   * Called each time a new question is shown.
+   */
+  function resetTimer() {
+    secondsLeft = TIME_PER_QUESTION;
+    startTimer();
+  }
+
+  /**
+   * Stop the timer without resetting. Used when the user answers
+   * so they can read the feedback without time pressure.
+   */
+  function pauseTimer() {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+
+  /**
+   * Called when the 5-minute limit for a single question runs out.
+   *   - Leave the question unanswered (null)
+   *   - If it's the last question → finish exam
+   *   - Otherwise → auto-advance to next question
+   */
+  function handleQuestionTimeout() {
+    if (currentIndex === examQuestions.length - 1) {
+      // Last question — end exam
+      document.getElementById('timeout-overlay').classList.add('show');
+    } else {
+      // Auto-advance to next question with a fresh 5:00 timer
+      currentIndex++;
+      resetTimer();
+      renderQuestion();
+    }
   }
 
   function updateTimerDisplay() {
@@ -233,13 +272,13 @@
     const progress = document.getElementById('time-progress');
 
     display.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    progress.style.width = `${(secondsLeft / TOTAL_TIME) * 100}%`;
+    progress.style.width = `${(secondsLeft / TIME_PER_QUESTION) * 100}%`;
 
     // Reset status classes
     display.className = '';
     progress.className = '';
 
-    // Apply warning/danger states
+    // Apply warning/danger states (last 2 min yellow, last 1 min red)
     if (secondsLeft <= 60) {
       display.classList.add('danger');
       progress.classList.add('danger');
@@ -321,13 +360,32 @@
   function selectAnswer(optionIndex) {
     if (userAnswers[currentIndex] !== null) return;
     userAnswers[currentIndex] = optionIndex;
+    // Pause timer once answered — gives user time to read explanation
+    pauseTimer();
     renderQuestion();
   }
 
   function goToQuestion(direction) {
     const nextIdx = currentIndex + direction;
     if (nextIdx < 0 || nextIdx >= examQuestions.length) return;
+
     currentIndex = nextIdx;
+
+    // Decide timer behavior BEFORE rendering so display is correct
+    if (userAnswers[currentIndex] === null) {
+      // New/unanswered question → reset to full 5:00 and start counting
+      resetTimer();
+    } else {
+      // Already answered → stop the timer and show "✓ Answered"
+      pauseTimer();
+      const timeDisplay = document.getElementById('time-display');
+      const timeProgress = document.getElementById('time-progress');
+      timeDisplay.textContent = '✓ Answered';
+      timeDisplay.className = '';
+      timeProgress.style.width = '100%';
+      timeProgress.className = '';
+    }
+
     renderQuestion();
   }
 
