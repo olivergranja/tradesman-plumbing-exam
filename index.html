@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- ═══════════════ SEO & META TAGS ═══════════════ -->
+  <title>Texas Plumbing Prep – Tradesman License Practice Exam</title>
+  <meta name="description" content="Free practice exam simulator for the Texas Tradesman Plumbing License. Three unique exam versions with 80 questions each, timed tests, and instant feedback to help you prepare for the theoretical portion of the TSBPE exam.">
+  <meta name="keywords" content="Texas plumbing exam, tradesman plumber license, TSBPE, plumbing practice test, Texas plumber certification, IRC, UPC, plumbing code study">
+  <meta name="author" content="Oliver Granja – ViscaCode">
+  <meta name="robots" content="index, follow">
+
+  <!-- Open Graph (Facebook, WhatsApp, LinkedIn) -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Texas Plumbing Prep – Tradesman License Practice Exam">
+  <meta property="og:description" content="Free practice exam simulator with 3 unique versions, 80 questions each, and a 5-minute timer. Built to help aspiring plumbers prepare for the Texas Tradesman License.">
+  <meta property="og:image" content="assets/logo.jpg">
+  <meta property="og:url" content="https://olivergranja.github.io/tradesman-plumbing-exam/">
+  <meta property="og:site_name" content="Texas Plumbing Prep">
+
+  <!-- Twitter Cards -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Texas Plumbing Prep – Tradesman License Practice Exam">
+  <meta name="twitter:description" content="Free practice exam simulator for the Texas Tradesman Plumbing License. Three exam versions, 80 questions, 5-minute timer.">
+  <meta name="twitter:image" content="assets/logo.jpg">
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg">
+  <link rel="apple-touch-icon" href="assets/logo.jpg">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Early theme detection — avoids flash of wrong theme -->
+  <script>
+    (function(){
+      try {
+        var saved = localStorage.getItem('tpp-theme');
+        var prefersLight = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
+        var theme = saved || (prefersLight ? 'light' : 'dark');
+        if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+      } catch(e){}
+    })();
+  </script>
+</head>
+<body>
+
+  <!-- ═══════════════ THEME TOGGLE ═══════════════ -->
+  <button id="theme-toggle" aria-label="Toggle light/dark mode" title="Toggle theme">
+    <span class="icon-sun">☀️</span>
+    <span class="icon-moon">🌙</span>
+  </button>
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header>
+    <div class="hero-logo">
+      <img src="assets/logo.jpg" alt="Texas Plumbing Prep emblem" />
+    </div>
+    <h1>PLUMBING <span>PREP</span></h1>
+    <p class="subtitle">Theoretical Exam Simulator for the Texas Tradesman Plumbing License</p>
+  </header>
+
+  <!-- ═══════════════ TIMER BAR ═══════════════ -->
+  <div id="timer-bar" style="display:none;">
+    <div class="timer-left">
+      <span style="font-size:22px" aria-hidden="true">⏱</span>
+      <span id="time-display">5:00</span>
+    </div>
+    <div class="progress-wrap"><div id="time-progress"></div></div>
+    <span id="q-counter">Question 1 / 80</span>
+  </div>
+
+  <!-- ═══════════════ START SCREEN ═══════════════ -->
+  <div id="screen-start">
+    <h2>🔧 Select Your Exam</h2>
+    <p>Three different versions are available. Each exam covers <strong>all 10 topics</strong> of the theoretical portion and includes <strong>5 unique trap questions</strong> designed to test your attention to detail.</p>
+
+    <div class="info-grid">
+      <div class="info-box"><div class="num">80</div><div class="lbl">Questions</div></div>
+      <div class="info-box"><div class="num">100</div><div class="lbl">Points</div></div>
+      <div class="info-box"><div class="num">5:00</div><div class="lbl">Minutes</div></div>
+      <div class="info-box"><div class="num">70</div><div class="lbl">To Pass</div></div>
+    </div>
+
+    <div class="exam-selector">
+      <div class="exam-card" id="card-1" data-exam="1">
+        <div class="exam-num">01</div>
+        <div>
+          <div class="exam-label">Exam Version 1</div>
+          <div class="exam-desc">All topics · 5 unique traps</div>
+        </div>
+      </div>
+      <div class="exam-card" id="card-2" data-exam="2">
+        <div class="exam-num">02</div>
+        <div>
+          <div class="exam-label">Exam Version 2</div>
+          <div class="exam-desc">All topics · 5 different traps</div>
+        </div>
+      </div>
+      <div class="exam-card" id="card-3" data-exam="3">
+        <div class="exam-num">03</div>
+        <div>
+          <div class="exam-label">Exam Version 3</div>
+          <div class="exam-desc">All topics · 5 new traps</div>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btn-start" disabled>SELECT AN EXAM TO BEGIN</button>
+  </div>
+
+  <!-- ═══════════════ QUIZ SCREEN ═══════════════ -->
+  <div id="screen-quiz" style="display:none;">
+    <div id="question-container"></div>
+    <div class="nav-row">
+      <button class="btn-prev" id="btn-prev">← Previous</button>
+      <button class="btn-next" id="btn-next" disabled>Next →</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ RESULT SCREEN ═══════════════ -->
+  <div id="screen-result">
+    <div class="result-hero">
+      <div class="score-ring" id="score-ring">
+        <div class="big-num" id="score-num">0</div>
+        <div class="big-label">/ 100 pts</div>
+      </div>
+      <h2 id="result-title">YOUR RESULT</h2>
+      <p id="result-msg"></p>
+      <div class="stats-row">
+        <div class="stat-box"><div class="val" id="stat-correct">0</div><div class="key">✅ Correct</div></div>
+        <div class="stat-box"><div class="val" id="stat-wrong">0</div><div class="key">❌ Incorrect</div></div>
+        <div class="stat-box"><div class="val" id="stat-skipped">0</div><div class="key">⬜ Skipped</div></div>
+        <div class="stat-box"><div class="val" id="stat-pts">0</div><div class="key">📊 Points</div></div>
+      </div>
+      <div class="action-row">
+        <button class="btn-primary" id="btn-restart">🔄 Try Again</button>
+      </div>
+    </div>
+    <div class="section-header">ANSWER REVIEW</div>
+    <div class="review-list" id="review-list"></div>
+  </div>
+
+  <!-- ═══════════════ TIMEOUT OVERLAY ═══════════════ -->
+  <div id="timeout-overlay">
+    <div class="timeout-box">
+      <div class="icon">⏰</div>
+      <h2>TIME'S UP!</h2>
+      <p>Your 5-minute limit has ended. Let's see your final score.</p>
+      <button class="btn-primary" id="btn-timeout-view">VIEW RESULTS</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════ ABOUT SECTION (COLLAPSIBLE) ═══════════════ -->
+  <section class="info-section">
+    <details class="info-card">
+      <summary class="info-summary">
+        <span class="info-summary-icon">📖</span>
+        <span class="info-summary-text">ABOUT THIS PROJECT</span>
+        <span class="info-summary-chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="info-content">
+        <p>Hi, I'm <strong>Oliver Granja</strong>, a candidate pursuing my <strong>Tradesman Plumber-Limited License</strong> in Texas. I built this practice exam as a tool to help myself study — and to share it with other aspiring plumbers who want to practice for the theoretical portion of the exam and pass on their first attempt.</p>
+
+        <h4 class="info-subtitle">⚠️ Important Disclaimer</h4>
+        <p>This website is an <strong>independent practice tool</strong> and is <strong>NOT affiliated with, endorsed by, or connected to the Texas State Board of Plumbing Examiners (TSBPE)</strong> or any state agency. It does <strong>NOT replace the official training required by law</strong> to qualify for the Tradesman Plumber-Limited Examination.</p>
+
+        <h4 class="info-subtitle">📚 About the Official Exam</h4>
+        <p>According to the <strong>Texas State Board of Plumbing Examiners (TSBPE)</strong>, applicants for the Tradesman Plumber-Limited License must complete <strong>24 hours of classroom training</strong> through a TSBPE-approved course provider, which includes:</p>
+        <ul class="info-list">
+          <li>A <strong>6-hour Continuing Professional Education (CPE)</strong> course</li>
+          <li>The <strong>OSHA 10-Hour Outreach Training</strong></li>
+          <li><strong>8 hours of training</strong> on the International Residential Code (IRC) and/or the Uniform Plumbing Code (UPC)</li>
+        </ul>
+        <p>Additional requirements include being registered as a Plumber's Apprentice in Texas, having at least <strong>4,000 hours of documented plumbing experience</strong>, submitting fingerprints, and paying the exam fee. The written exam is <strong>closed book</strong> and the minimum passing score is <strong>70%</strong>.</p>
+
+        <h4 class="info-subtitle">🎯 Purpose of This Site</h4>
+        <p>The goal is simple: to offer a free, convenient, and well-organized way to practice exam-style questions based on core plumbing code concepts. Use it as a <strong>complement</strong> to — never as a replacement for — your official TSBPE-approved training.</p>
+
+        <p class="info-source">For authoritative and current information, visit the official TSBPE website: <a href="https://tsbpe.texas.gov" target="_blank" rel="noopener">tsbpe.texas.gov</a></p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ═══════════════ FAQ SECTION (COLLAPSIBLE) ═══════════════ -->
+  <section class="info-section">
+    <details class="info-card">
+      <summary class="info-summary">
+        <span class="info-summary-icon">❓</span>
+        <span class="info-summary-text">FREQUENTLY ASKED QUESTIONS</span>
+        <span class="info-summary-chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="info-content">
+        <h4 class="info-subtitle">Does this replace the official 24-hour training?</h4>
+        <p>No. This practice exam is a <strong>study aid</strong> only. The TSBPE requires 24 hours of official classroom training — including 8 hours on the IRC/UPC code, a 6-hour CPE course, and OSHA 10-hour training — from an approved provider. You cannot legally take the Tradesman exam without completing that training.</p>
+
+        <h4 class="info-subtitle">Are these the real exam questions?</h4>
+        <p>No. These are <strong>original practice questions</strong> inspired by common residential plumbing code topics. The actual exam questions are confidential and controlled by the TSBPE. The real exam has 85 multiple-choice questions plus a hands-on component.</p>
+
+        <h4 class="info-subtitle">How many times can I take each exam?</h4>
+        <p>Unlimited times. Practice as much as you want — your progress is saved locally on your device only, and no account is required.</p>
+
+        <h4 class="info-subtitle">Why is there a 5-minute timer?</h4>
+        <p>It's designed to simulate pressure and help you practice quick decision-making. The real exam gives you <strong>120 minutes for 90 written questions</strong>, but this short-format simulator focuses on rapid recall of key concepts.</p>
+
+        <h4 class="info-subtitle">What's a "trap question"?</h4>
+        <p>Trap questions are specifically designed to catch common mistakes — things like confusing measurements, misreading "true/false" statements, or mixing up similar code requirements. Each exam includes 5 different trap questions marked with a red ⚠️ tag.</p>
+
+        <h4 class="info-subtitle">How do I report an error in a question?</h4>
+        <p>Email <a href="mailto:texasplumbingprep@gmail.com">texasplumbingprep@gmail.com</a> with the exam number, question text, and what you think should be corrected. I review all feedback.</p>
+
+        <h4 class="info-subtitle">Will new questions be added?</h4>
+        <p>Yes. The question bank will expand over time with user feedback and updates to the plumbing code. Check back periodically.</p>
+
+        <h4 class="info-subtitle">How much does the real exam cost?</h4>
+        <p>As of 2025, the TSBPE charges a <strong>$36 exam fee</strong> plus a <strong>$35 initial license fee</strong> once you pass. Training courses and fingerprinting have separate costs through approved providers. Always verify current fees at <a href="https://tsbpe.texas.gov" target="_blank" rel="noopener">tsbpe.texas.gov</a>.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ═══════════════ CONTACT SECTION (COLLAPSIBLE) ═══════════════ -->
+  <section class="info-section">
+    <details class="info-card">
+      <summary class="info-summary">
+        <span class="info-summary-icon">📧</span>
+        <span class="info-summary-text">CONTACT</span>
+        <span class="info-summary-chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="info-content">
+        <p>Have a question, suggestion, or found an error in one of the questions? I'd love to hear from you.</p>
+        <p class="contact-email">
+          <a href="mailto:texasplumbingprep@gmail.com">📧 texasplumbingprep@gmail.com</a>
+        </p>
+        <p class="info-source">Response time is typically within a few days. All feedback is reviewed and appreciated.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ═══════════════ PRIVACY POLICY (COLLAPSIBLE) ═══════════════ -->
+  <section class="info-section">
+    <details class="info-card">
+      <summary class="info-summary">
+        <span class="info-summary-icon">🔒</span>
+        <span class="info-summary-text">PRIVACY POLICY</span>
+        <span class="info-summary-chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="info-content">
+        <p><strong>Last updated:</strong> 2025</p>
+
+        <h4 class="info-subtitle">What We Collect</h4>
+        <p>Texas Plumbing Prep does <strong>NOT collect any personal information</strong>. We do not require registration, accounts, emails, or payment information to use the practice exam.</p>
+
+        <h4 class="info-subtitle">Local Storage</h4>
+        <p>This website uses your browser's <strong>localStorage</strong> only to remember your theme preference (light or dark mode). This data stays on your device and is never transmitted anywhere. You can clear it at any time through your browser settings.</p>
+
+        <h4 class="info-subtitle">Cookies</h4>
+        <p>This website does <strong>NOT use tracking cookies</strong>, advertising cookies, or third-party trackers.</p>
+
+        <h4 class="info-subtitle">External Links</h4>
+        <p>The website contains links to external sources including <strong>tsbpe.texas.gov</strong> (official Texas State Board of Plumbing Examiners) and <strong>paypal.me</strong> (for optional donations). We are not responsible for the content or privacy practices of external sites.</p>
+
+        <h4 class="info-subtitle">Third-Party Services</h4>
+        <p>The site loads fonts from <strong>Google Fonts</strong>, which may collect anonymous technical data (such as browser type) per Google's privacy policy.</p>
+
+        <h4 class="info-subtitle">Contact</h4>
+        <p>For privacy-related questions, email <a href="mailto:texasplumbingprep@gmail.com">texasplumbingprep@gmail.com</a>.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ═══════════════ TERMS OF USE (COLLAPSIBLE) ═══════════════ -->
+  <section class="info-section">
+    <details class="info-card">
+      <summary class="info-summary">
+        <span class="info-summary-icon">⚖️</span>
+        <span class="info-summary-text">TERMS OF USE</span>
+        <span class="info-summary-chevron" aria-hidden="true">▾</span>
+      </summary>
+      <div class="info-content">
+        <p><strong>Last updated:</strong> 2025</p>
+
+        <h4 class="info-subtitle">1. Acceptance of Terms</h4>
+        <p>By using Texas Plumbing Prep, you agree to these Terms of Use. If you do not agree, please do not use this site.</p>
+
+        <h4 class="info-subtitle">2. Educational Purpose Only</h4>
+        <p>This website is provided for <strong>educational and study purposes only</strong>. It is an independent practice tool and is <strong>NOT affiliated with, endorsed by, or connected to the Texas State Board of Plumbing Examiners (TSBPE)</strong> or any government agency.</p>
+
+        <h4 class="info-subtitle">3. No Guarantee</h4>
+        <p>The content is provided "as is" without any warranty. Using this practice exam does <strong>NOT guarantee that you will pass</strong> the official Tradesman Plumber-Limited Examination or any other licensing exam. Success depends on your own study, experience, and completion of the TSBPE-required training.</p>
+
+        <h4 class="info-subtitle">4. Accuracy of Content</h4>
+        <p>While we strive for accuracy, plumbing codes and regulations may change. Questions are based on general code concepts but may contain errors or be outdated. <strong>Always verify current requirements with official sources</strong>, including the IRC, UPC, and TSBPE publications.</p>
+
+        <h4 class="info-subtitle">5. Not Legal or Professional Advice</h4>
+        <p>Content on this site does not constitute legal advice, professional advice, or licensing guidance. Consult a qualified master plumber or contact the TSBPE directly for authoritative information.</p>
+
+        <h4 class="info-subtitle">6. Limitation of Liability</h4>
+        <p>The author shall not be held liable for any direct, indirect, or consequential damages arising from the use of this website, including but not limited to exam failure, misapplication of code requirements, or work-related issues.</p>
+
+        <h4 class="info-subtitle">7. Intellectual Property</h4>
+        <p>All original content (questions, explanations, design) is © 2025 Oliver Granja – ViscaCode. Referenced code names (IRC, UPC) belong to their respective organizations.</p>
+
+        <h4 class="info-subtitle">8. Changes to Terms</h4>
+        <p>These terms may be updated at any time without notice. Continued use of the site after changes constitutes acceptance of the new terms.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ═══════════════ SUPPORT SECTION ═══════════════ -->
+  <section class="support-section">
+    <h3 class="support-title">💛 Support This Project</h3>
+    <p class="support-text">If this practice exam helps you prepare for your Tradesman license, consider supporting the project so I can keep it online and add more questions.</p>
+    <div class="support-buttons">
+      <a href="https://paypal.me/OliverGranja" target="_blank" rel="noopener" class="btn-paypal">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.42 1.012 4.287-.023.143-.047.288-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.9l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.041.254-.59 3.025-2.566 6.082-7.569 6.082h-2.19a.563.563 0 0 0-.556.479l-1.187 7.527h-.506l-.24 1.516a.56.56 0 0 0 .554.647h3.882c.46 0 .85-.334.922-.788.06-.26.76-4.852.816-5.09a.932.932 0 0 1 .923-.788h.58c3.76 0 6.705-1.528 7.565-5.946.36-1.847.174-3.388-.772-4.471z"/>
+        </svg>
+        Donate via PayPal
+      </a>
+      <span class="support-handle">@OliverGranja</span>
+    </div>
+  </section>
+
+  <!-- ═══════════════ FOOTER ═══════════════ -->
+  <footer class="page-footer">
+    <div class="footer-links">
+      <a href="mailto:texasplumbingprep@gmail.com">Contact</a>
+      <span class="footer-sep">·</span>
+      <a href="https://tsbpe.texas.gov" target="_blank" rel="noopener">TSBPE Official</a>
+      <span class="footer-sep">·</span>
+      <a href="https://paypal.me/OliverGranja" target="_blank" rel="noopener">Support</a>
+    </div>
+    <p>© 2025 <span class="footer-brand">Oliver Granja – ViscaCode</span> · All rights reserved</p>
+    <p class="footer-tagline">Theoretical Exam Simulator for the Texas Tradesman Plumbing License</p>
+    <p class="footer-version">v2.0 · Last updated 2025</p>
+  </footer>
+
+  <!-- ═══════════════ SCRIPTS ═══════════════ -->
+  <script src="js/questions.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/exam.js"></script>
+</body>
+</html>
