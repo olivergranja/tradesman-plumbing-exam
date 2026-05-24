@@ -17,10 +17,11 @@
   // CONFIGURATION
   // ──────────────────────────────────────────────────────────────
   const TIME_PER_QUESTION = 300;       // 5 minutes per question (in seconds)
-  const TOTAL_QUESTIONS = 80;
-  const POINTS_PER_Q = 100 / TOTAL_QUESTIONS; // 1.25 pts each
-  const PASS_THRESHOLD = 70;           // points needed to pass
+  const PASS_THRESHOLD = 70;           // points needed to pass (out of 100)
   const LETTERS = ['A', 'B', 'C', 'D'];
+
+  // Each exam is always scored out of 100 points.
+  // Points per question = 100 / (number of questions in that exam)
 
   // ──────────────────────────────────────────────────────────────
   // STATE
@@ -165,14 +166,45 @@
   }
 
   /**
-   * Build all 3 exam versions on demand (cached).
+   * Build Exam 4 — uses ALL questions from the IRC practice document
+   * (indices 117-211) plus ALL 15 trap questions (102-116).
+   * Total: 110 questions, scored out of 100 points.
+   *
+   * Self-contained: builds indices internally so it works even if
+   * EXAM_4_REGULAR_INDICES / EXAM_4_TRAP_INDICES are missing from questions.js.
+   */
+  function buildExam4(seed) {
+    // Build indices internally — robust against missing globals
+    const regularIndices = [];
+    for (let i = 117; i <= 211; i++) {
+      if (QUESTION_BANK[i]) regularIndices.push(i);
+    }
+    const trapIndices = [];
+    for (let i = 102; i <= 116; i++) {
+      if (QUESTION_BANK[i]) trapIndices.push(i);
+    }
+
+    if (regularIndices.length === 0) {
+      console.error('Exam 4 ERROR: No IRC practice questions found in bank (expected indices 117-211). Check that questions.js is updated.');
+      return [];
+    }
+
+    const regular = seededShuffle(regularIndices, seed);
+    const traps   = seededShuffle(trapIndices, seed + 99);
+    const combined = seededShuffle([...regular, ...traps], seed * 7);
+    return shuffleQuestionOptions(combined, seed);
+  }
+
+  /**
+   * Build all 4 exam versions on demand (cached).
    */
   function getExams() {
     if (examsCache) return examsCache;
     examsCache = [
-      buildExam(1001, TRAP_SETS[1]),
-      buildExam(2002, TRAP_SETS[2]),
-      buildExam(3003, TRAP_SETS[3]),
+      buildExam(1001, TRAP_SETS[1]),  // Exam 1 — 85 Q
+      buildExam(2002, TRAP_SETS[2]),  // Exam 2 — 85 Q
+      buildExam(3003, TRAP_SETS[3]),  // Exam 3 — 85 Q
+      buildExam4(4004),               // Exam 4 — 110 Q (IRC practice + all traps)
     ];
     return examsCache;
   }
@@ -196,7 +228,16 @@
   function startExam() {
     if (!selectedExam) return;
 
-    examQuestions = getExams()[selectedExam - 1];
+    const allExams = getExams();
+    examQuestions = allExams[selectedExam - 1];
+
+    // Safety check — if exam couldn't be built, show clear error
+    if (!examQuestions || examQuestions.length === 0) {
+      console.error('Exam', selectedExam, 'could not be built. allExams =', allExams);
+      alert(`Exam ${selectedExam} could not be loaded. The questions file may not have updated correctly. Try refreshing the page (Ctrl+F5 or Cmd+Shift+R).`);
+      return;
+    }
+
     userAnswers = new Array(examQuestions.length).fill(null);
     currentIndex = 0;
     secondsLeft = TIME_PER_QUESTION;
@@ -326,11 +367,14 @@
          </div>`
       : '';
 
+    // Points per question depends on exam length (always sums to 100 total)
+    const ptsPerQ = (100 / examQuestions.length).toFixed(2).replace(/\.?0+$/, '');
+
     // Build card
     document.getElementById('question-container').innerHTML = `
       <div class="question-card">
         <div class="q-tag">
-          Question ${currentIndex + 1} of ${examQuestions.length} &nbsp;·&nbsp; 1.25 pts
+          Question ${currentIndex + 1} of ${examQuestions.length} &nbsp;·&nbsp; ${ptsPerQ} pts
           ${pillHTML}
         </div>
         <p class="q-text">${question.q}</p>
@@ -415,7 +459,9 @@
       (acc, ans, i) => acc + (ans !== null && ans !== examQuestions[i].c ? 1 : 0), 0
     );
     const skippedCount = userAnswers.filter(a => a === null).length;
-    const points = parseFloat((correctCount * POINTS_PER_Q).toFixed(1));
+    // Each exam is worth 100 points total — points per question depends on this exam's length
+    const pointsPerQ = 100 / examQuestions.length;
+    const points = parseFloat((correctCount * pointsPerQ).toFixed(1));
     const passed = points >= PASS_THRESHOLD;
 
     // Update score ring

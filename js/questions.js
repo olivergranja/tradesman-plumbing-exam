@@ -3,17 +3,10 @@
    © 2025 Oliver Granja – ViscaCode
 
    Structure:
-     - Indices 0-101  : regular questions across 10 topics
-     - Indices 102-106: 5 trap questions for Exam 1
-     - Indices 107-111: 5 trap questions for Exam 2
-     - Indices 112-116: 5 trap questions for Exam 3
-
-   Each question object:
-     s = section/topic name
-     q = question text
-     o = array of 4 answer options
-     c = index of correct answer (0-3)
-     e = explanation shown after answering
+     - Indices   0-101 : regular questions across 10 topics
+     - Indices 102-116 : 15 trap questions (5 per exam 1-3)
+     - Indices 117-211 : 95 questions from "Preguntas para
+                         practicar examen" (used by Exam 4)
    ═══════════════════════════════════════════════════════════════ */
 
 const QUESTION_BANK = [
@@ -160,23 +153,136 @@ const QUESTION_BANK = [
   {s:"⚠️ Trap Question",q:"A gas appliance shutoff valve can be located in an adjacent room if within 6 feet of the appliance. True or False?",o:["True — 6 feet is the only rule that matters","True — as long as the valve is readily accessible","False — the shutoff must be in the SAME ROOM, within 6 feet, and readily accessible","False — the shutoff must be directly on the appliance"],c:2,e:"TRAP: The shutoff must be in the SAME ROOM as the appliance, no further than 6 feet away, AND readily accessible. All three conditions apply."},
   {s:"⚠️ Trap Question",q:"A water heater installed in an attic requires 18 inches of access — True or False?",o:["True — 18 inches matches the 18-inch rule for garages","True — only on pitched-roof attics","False — attic water heaters require 24 inches of access","False — the required access is 36 inches"],c:2,e:"TRAP: Attic water heaters require 24 INCHES of access — not 18. Don't confuse this with the 18-inch floor elevation for garage-installed heaters."},
   {s:"⚠️ Trap Question",q:"A trap arm can be connected to the drain with a wye fitting if it has the correct slope. True or False?",o:["True — wye fittings provide better flow than san tees","True — as long as the slope is at least ¼ inch per foot","False — trap arms must connect with a SAN TEE — not a wye or combo","False — trap arms can only connect with a long-turn elbow"],c:2,e:"TRAP: Trap arms must connect with a SAN TEE — never a wye or combo fitting, regardless of slope."},
+
+  // ════════════════════════════════════════════════════════════════
+  // 117-211: IRC 2018 PRACTICE QUESTIONS (Used by Exam 4)
+  // Source: Practice questions provided by user, based on the
+  // 2018 International Residential Code and Texas Plumbing License Law.
+  // ════════════════════════════════════════════════════════════════
+
+  // ───── Round 1 (5 questions) — indices 117-121 ─────
+  {s:"IRC – Drainage",q:"According to the 2018 IRC, what is the minimum required slope (fall) for a horizontal drainage pipe that is 2 inches in diameter or less?",o:["1/8 inch per foot","1/4 inch per foot","1/2 inch per foot","1 inch per foot"],c:1,e:"2018 IRC §P3005.3 — The minimum slope is 1/4 inch per foot for pipes 2 inches and smaller, to ensure solids stay in suspension and the pipe scours properly."},
+  {s:"IRC – Water Heaters",q:"A T&P relief valve discharge pipe must terminate atmospherically not more than ____ inches and not less than ____ inches above the floor or waste receptor.",o:["12 max / 2 min","6 max / 2 min","6 max / 'twice the diameter of the pipe' min","18 max / 6 min"],c:2,e:"2018 IRC §P2804.6.1 — 6 inches maximum, with a minimum air gap of twice the pipe diameter. The goal is to prevent both a trip hazard and back-siphonage."},
+  {s:"IRC – Fuel Gas",q:"Which of the following is NOT an approved material for testing a fuel gas piping system for leaks?",o:["Nitrogen","Carbon Dioxide","Compressed Air","Oxygen"],c:3,e:"2018 IRC §G2417.2 — Never use oxygen! It can react with oils in the pipe and cause a violent explosion. Use air, nitrogen, or CO2."},
+  {s:"IRC – Water Heaters",q:"When installing a water heater in a location where water leakage could cause damage, a pan must be installed. What is the minimum required depth of this pan?",o:["1 inch","1.5 inches","2 inches","3 inches"],c:1,e:"2018 IRC §P2801.6.1 — The pan must be at least 1.5 inches deep, with a drain of at least 3/4 inch diameter."},
+  {s:"IRC – Vents",q:"All vent and branch vent pipes shall be so graded and connected as to drip back by gravity to the ______ pipe they serve.",o:["Water","Drainage","Gas","Relief"],c:1,e:"2018 IRC §P3104.2 — Vents are for air, but moisture from condensation or splashing needs a way to get back to the drainage pipe and into the sewer."},
+
+  // ───── Round 2 (20 questions) — indices 122-141 ─────
+  {s:"License Law (TX)",q:"A person may not perform plumbing on a one-or-two family dwelling unless they are at least:",o:["A registered Plumber's Apprentice","A licensed Tradesman Plumber-Limited","A licensed Journeyman Plumber","A high school graduate"],c:0,e:"PLL §1301.351 — You must be at least a registered Plumber's Apprentice to even touch the tools."},
+  {s:"IRC – Water Supply",q:"What is the minimum size of a residential water service pipe?",o:["1/2 inch","3/4 inch","1 inch","1-1/4 inch"],c:1,e:"2018 IRC §P2903.7 — Minimum water service pipe size is 3/4 inch."},
+  {s:"IRC – Definitions",q:"In a drainage system, the 'lowest part of the horizontal piping that receives the discharge of all other drainage piping inside the building' is the:",o:["Building Sewer","Stack Vent","Building Drain","Branch Interval"],c:2,e:"2018 IRC Chapter 24 — The Building Drain is inside the building; the Building Sewer starts where it exits."},
+  {s:"IRC – Fixtures",q:"Joints between a water closet (toilet) and the floor flange shall be made gas-tight and water-tight by use of:",o:["Plumber's putty only","Silicone caulk only","A wax ring or elastomeric seal","Expansion cement"],c:2,e:"2018 IRC §P3003.9.2 — A wax ring or elastomeric seal is required between water closet and floor flange."},
+  {s:"IRC – Drainage",q:"Vertical drainage piping 3 inches or larger in diameter shall be supported at intervals not to exceed ______ feet.",o:["10","15","5","Each floor level"],c:3,e:"2018 IRC Table P2605.1 — Vertical drainage piping 3 inches or larger must be supported at every floor level."},
+  {s:"IRC – Traps",q:"Which of the following traps is strictly prohibited for use in a residential plumbing system?",o:["P-trap","Drum trap","S-trap","Both Drum and S-traps"],c:3,e:"2018 IRC §P3201.5 — Both drum traps and S-traps are prohibited."},
+  {s:"IRC – Backflow",q:"The minimum air gap for a fixture with an effective opening of 1/2 inch that is NOT affected by a sidewall is:",o:["1 inch","1.5 inches","2 inches","3 inches"],c:0,e:"2018 IRC Table P2902.3.1 — Minimum air gap is 1 inch for a 1/2-inch opening not affected by a sidewall."},
+  {s:"IRC – Testing",q:"When testing a DWV system with water, the water must be kept in the system for at least ______ minutes before inspection starts.",o:["5","10","15","30"],c:2,e:"2018 IRC §P2503.5.1 — The DWV water test must be held for at least 15 minutes."},
+  {s:"IRC – Venting",q:"What is the maximum distance a fixture trap can be from a vent for a 2-inch pipe?",o:["5 feet","6 feet","8 feet","10 feet"],c:2,e:"2018 IRC Table P3105.1 — A 2-inch trap arm has a maximum length of 8 feet."},
+  {s:"Definitions",q:"A 'Cross Connection' is best defined as:",o:["A connection between two different vent stacks","A connection between a potable water supply and a non-potable source","A fitting that allows two pipes to cross each other","A cleanout that serves two different lines"],c:1,e:"IRC Chapter 24 — A Cross Connection is between a potable water supply and a non-potable source."},
+  {s:"IRC – Fuel Gas",q:"Fuel gas piping must be tested at a pressure of at least ______ times the proposed maximum working pressure, but not less than ______ psig.",o:["1.5 / 3","2 / 10","3 / 15","1.5 / 10"],c:0,e:"2018 IRC §G2417.4.1 — Test at 1.5x working pressure, but not less than 3 psig."},
+  {s:"IRC – Water Heaters",q:"When a water heater is installed in a garage, the ignition source must be at least ______ inches above the floor.",o:["6","12","18","24"],c:2,e:"2018 IRC §P2801.7 — Ignition source must be at least 18 inches above the floor in a garage."},
+  {s:"IRC – Materials",q:"Which material is NOT approved for use as a water distribution pipe inside a house?",o:["CPVC","PEX","PVC (Schedule 40)","Copper (Type L)"],c:2,e:"2018 IRC Table P2906.5 — PVC is for cold water service or DWV, not hot/cold distribution inside the home."},
+  {s:"IRC – Cleanouts",q:"A cleanout is required at the junction of the building drain and the building sewer, or no more than ______ feet outside the building wall.",o:["2","5","10","15"],c:2,e:"2018 IRC §P3005.2.7 — Cleanout required at junction or no more than 10 feet outside the building wall."},
+  {s:"IRC – Vents",q:"What is the minimum size of a vent for a residential kitchen sink (1-1/2 inch trap)?",o:["1-1/4 inch","1-1/2 inch","2 inch","3 inch"],c:0,e:"2018 IRC Table P3107.3 — Minimum vent size for a 1-1/2 inch trap is 1-1/4 inch."},
+  {s:"IRC – Vents",q:"Horizontal vent pipes must be installed at least ______ inches above the flood level rim of the highest fixture they serve before turning horizontal.",o:["2","4","6","12"],c:2,e:"2018 IRC §P3104.5 — Vents must rise 6 inches above the flood level rim before turning horizontal."},
+  {s:"License Law (TX)",q:"A plumbing permit is generally required for:",o:["Clearing a simple stoppage","Replacing a washer in a faucet","Replacing a water heater","Re-caulking a bathtub"],c:2,e:"Replacing a water heater requires a permit due to gas/electrical and water connections involved."},
+  {s:"IRC – Materials",q:"Solvent cement joints for PVC pipe require the use of a primer that complies with:",o:["ASTM D 2564","ASTM F 656","ASTM D 1785","NSF 61"],c:1,e:"2018 IRC §P3003.9.2 — Primer must comply with ASTM F 656."},
+  {s:"IRC – Traps",q:"What is the maximum length of a fixture tailpiece (vertical distance from fixture outlet to trap weir)?",o:["12 inches","18 inches","24 inches","30 inches"],c:2,e:"2018 IRC §P3201.6 — Maximum tailpiece length is 24 inches from fixture outlet to trap weir."},
+  {s:"Definitions",q:"A 'Wet Vent' is a vent that also serves as a:",o:["Gas line","Drain","Cleanout","Water supply"],c:1,e:"2018 IRC Chapter 24 — A Wet Vent is a vent that also serves as a drain for other fixtures."},
+
+  // ───── Round 3 (20 questions) — indices 142-161 ─────
+  {s:"IRC – Drainage",q:"What is the minimum required size for a residential building sewer?",o:["2 inches","3 inches","4 inches","6 inches"],c:1,e:"2018 IRC Table P3005.4.2 — Minimum residential building sewer is 3 inches."},
+  {s:"IRC – Water Heaters",q:"A water heater T&P relief valve must be set to open at a pressure not exceeding ______ psi.",o:["100","125","150","160"],c:2,e:"2018 IRC §P2804.3 — Maximum T&P relief valve setting is 150 psi."},
+  {s:"License Law (TX)",q:"In Texas, a licensed Tradesman Plumber-Limited is permitted to work on:",o:["Any commercial building up to 3 stories","One-and-two family dwellings only","Hospitals and Medical Gas systems","Public sewer mains only"],c:1,e:"PLL §1301.002(10) — Tradesman Plumber-Limited license is restricted to one-and-two family dwellings."},
+  {s:"IRC – Installation",q:"When burying PEX piping underground, what is the minimum required depth for the water service pipe?",o:["6 inches","12 inches","18 inches","Below the frost line, or at least 12 inches"],c:3,e:"2018 IRC §P2603.5 — Water service must be below the frost line, or at least 12 inches deep."},
+  {s:"IRC – Sizing",q:"What is the maximum number of drainage fixture units (DFUs) allowed on a 2-inch horizontal building drain?",o:["6","11","21","26"],c:2,e:"2018 IRC Table P3005.4.2 — Maximum 21 DFUs on a 2-inch horizontal building drain at 1/4 inch slope."},
+  {s:"IRC – Vents",q:"Which type of venting relies on the 'oversizing' of the drain pipe to allow air to flow above the waste?",o:["Individual vent","Combination waste and vent","Circuit vent","Island fixture vent"],c:1,e:"2018 IRC §P3111 — A Combination Waste and Vent system relies on oversized drain pipe for venting."},
+  {s:"IRC – Fuel Gas",q:"A fuel gas shutoff valve must be located in the same room as the appliance and within ______ feet of the appliance.",o:["3","6","10","50"],c:1,e:"2018 IRC §G2420.5.1 — Shutoff must be within 6 feet of the appliance and in the same room."},
+  {s:"IRC – Materials",q:"When soldering a copper joint for a potable water system, the solder must contain no more than ______ percent lead.",o:["0.2%","2.0%","8.0%","10.0%"],c:0,e:"2018 IRC §P2906.13 / Federal Safe Drinking Water Act — Maximum lead content in solder is 0.2%."},
+  {s:"IRC – Cleanouts",q:"What is the minimum clearance required in front of a 3-inch or 4-inch cleanout?",o:["12 inches","18 inches","24 inches","36 inches"],c:1,e:"2018 IRC §P3005.2.10 — Minimum clearance of 18 inches in front of a 3-inch or 4-inch cleanout."},
+  {s:"IRC – Vents",q:"A vent stack is required for every building that has a ______ stack.",o:["Waste","Soil","Drainage","All of the above"],c:3,e:"2018 IRC §P3103.1 — Every building with a waste, soil, or drainage stack requires a vent stack."},
+  {s:"IRC – Fixtures",q:"What is the minimum pipe size for a floor drain?",o:["1-1/2 inches","2 inches","3 inches","4 inches"],c:1,e:"2018 IRC §P3201.7 — Minimum floor drain pipe size is 2 inches."},
+  {s:"IRC – Vents",q:"When using a mechanical 'Studor' vent (Air Admittance Valve), it must be installed at least ______ inches above the horizontal branch being vented.",o:["2","4","6","12"],c:1,e:"2018 IRC §P3114.3 — AAVs must be installed at least 4 inches above the horizontal branch."},
+  {s:"IRC – Fixtures",q:"A bathtub must be provided with a waste outlet and overflow that is at least ______ inches in diameter.",o:["1-1/4","1-1/2","2","3"],c:1,e:"2018 IRC §P2713.1 — Bathtub waste outlet and overflow must be at least 1-1/2 inches."},
+  {s:"IRC – Fixtures",q:"What is the minimum width for a water closet (toilet) compartment or space?",o:["15 inches from center to wall","30 inches total width","21 inches in front of the toilet","Both 15-inch and 30-inch options apply"],c:3,e:"2018 IRC §P2705.1 — 15 inches from center of bowl to wall AND 30 inches total width."},
+  {s:"IRC – Fuel Gas",q:"If a gas piping system is made of corrugated stainless steel tubing (CSST), it must be bonded to the ______ system.",o:["Sanitary drainage","Electrical service grounding electrode","Water distribution","Venting"],c:1,e:"2018 IRC §G2411.2 — CSST must be bonded to the electrical service grounding electrode (lightning safety)."},
+  {s:"IRC – Vents",q:"A 'Circuit Vent' can serve a maximum of ______ fixtures.",o:["4","8","10","12"],c:1,e:"2018 IRC §P3110.1 — A circuit vent serves a maximum of 8 fixtures."},
+  {s:"IRC – Fixtures",q:"What is the minimum size of a discharge pipe for a sump pump?",o:["1 inch","1-1/4 inches","1-1/2 inches","2 inches"],c:1,e:"2018 IRC §P3303.3.2 — Minimum sump pump discharge pipe is 1-1/4 inches."},
+  {s:"IRC – Drainage",q:"Which of the following is an example of an 'indirect waste' connection?",o:["A kitchen sink drain","A clothes washer discharge into a standpipe","A dishwasher drain into a garbage disposal","A water heater T&P line terminating over a floor drain"],c:3,e:"2018 IRC §P2804.6.1 — A T&P discharge terminating over a floor drain is an example of indirect waste."},
+  {s:"IRC – Traps",q:"Every trap must have a water seal of at least ______ inches and not more than ______ inches.",o:["1 / 3","2 / 4","3 / 6","2 / 5"],c:1,e:"2018 IRC §P3201.2 — Trap water seal must be between 2 and 4 inches."},
+  {s:"License Law (TX)",q:"According to Board Rules, if you change your home address, you must notify the TSBPE in writing within ______ days.",o:["10","30","60","90"],c:1,e:"TSBPE Board Rule §365.8 — Address changes must be reported within 30 days."},
+
+  // ───── Round 4 (20 questions) — indices 162-181 ─────
+  {s:"Definitions",q:"A 'stack' is defined as any vertical line of ______ piping.",o:["Soil or waste","Vent","Soil/waste OR vent","Only piping 3 inches or larger"],c:2,e:"2018 IRC Chapter 24 — A 'stack' is any vertical line of soil/waste OR vent piping."},
+  {s:"IRC – Traps",q:"What is the maximum horizontal distance allowed for a 1-1/2 inch fixture tailpiece?",o:["12 inches","18 inches","24 inches","30 inches"],c:2,e:"2018 IRC §P3201.6 — Maximum tailpiece length is 24 inches."},
+  {s:"IRC – Installation",q:"When installing a trench for plumbing, the bottom of the trench must be:",o:["Sloped at 1/2 inch per foot","Loose dirt and gravel","Stable and of relatively uniform surfaces","Poured concrete"],c:2,e:"2018 IRC §P2604.1 — Trench bottom must be stable and of relatively uniform surfaces."},
+  {s:"IRC – Water Heaters",q:"A water heater pan drain shall not be smaller than ______ inch(es) or the size of the T&P relief valve discharge pipe.",o:["1/2","3/4","1","1-1/4"],c:1,e:"2018 IRC §P2801.6.1 — Pan drain must be at least 3/4 inch."},
+  {s:"IRC – Vents",q:"What is the minimum size of a vent that passes through the roof (VSTR) to prevent frost closure?",o:["1-1/2 inches","2 inches","3 inches","4 inches"],c:2,e:"2018 IRC §P3103.2 — Minimum 3 inches through the roof to prevent frost closure (hoarfrost)."},
+  {s:"IRC – Materials",q:"Which of the following is an example of a 'prohibited joint' in a plumbing system?",o:["Solvent cemented PVC","Cement or concrete joints","Solder joints on copper","Mechanical joints on cast iron"],c:1,e:"2018 IRC §P3003.2 — Cement or concrete joints are prohibited in plumbing systems."},
+  {s:"Definitions",q:"A 'Critical Level' (C-L) marking on a backflow prevention device refers to the point where ______ could occur if the device is submerged.",o:["Thermal expansion","Backflow","A leak","Pressure loss"],c:1,e:"2018 IRC Chapter 24 — Critical Level marks the point where backflow could occur if submerged."},
+  {s:"IRC – Cleanouts",q:"The maximum distance between a 3-inch horizontal drainage pipe and its cleanout is ______ feet.",o:["50","100","150","200"],c:1,e:"2018 IRC §P3005.2.2 — Maximum 100 feet between cleanouts on horizontal drainage."},
+  {s:"IRC – Vents",q:"When a vent terminal is located directly beneath a door or window, it must be at least ______ feet below that opening.",o:["1","2","3","4"],c:3,e:"2018 IRC §P3103.5 — Vent terminal must be at least 4 feet below a door or window above it."},
+  {s:"IRC – Drainage",q:"What is the minimum size of a pipe required to serve as a 'Building Drain' for a home with three water closets?",o:["2 inches","2-1/2 inches","3 inches","4 inches"],c:2,e:"2018 IRC Table P3005.4.2 — A home with water closets requires at least a 3-inch building drain."},
+  {s:"IRC – Cleanouts",q:"Every building sewer shall be provided with a cleanout at its connection to the building drain and every ______ feet of straight run.",o:["50","75","100","125"],c:2,e:"2018 IRC §P3005.2.2 — Cleanouts every 100 feet on building sewers."},
+  {s:"IRC – Fixtures",q:"When installing a clothes washer standpipe, the standpipe must be at least ______ inches but not more than ______ inches above the trap weir.",o:["12 / 24","18 / 42","6 / 18","24 / 48"],c:1,e:"2018 IRC §P2706.1.2 — Clothes washer standpipe must be 18 to 42 inches above the trap weir."},
+  {s:"IRC – Sizing",q:"What is the minimum required drainage fixture unit (DFU) value for a single bathroom group (water closet + lavatory + bathtub/shower)?",o:["3","5","6","8"],c:2,e:"2018 IRC Table P3004.1 — A complete bathroom group counts as 6 DFUs."},
+  {s:"IRC – Installation",q:"Horizontal drainage piping shall be supported at intervals not to exceed ______ feet for PVC pipe.",o:["4","6","8","10"],c:0,e:"2018 IRC Table P2605.1 — Horizontal PVC drainage piping supported every 4 feet."},
+  {s:"IRC – Fixtures",q:"A water closet (toilet) must be installed with at least ______ inches of clearance in front of the bowl to any wall or door.",o:["15","18","21","24"],c:2,e:"2018 IRC §P2705.1 — Water closet must have at least 21 inches of clearance in front of the bowl."},
+  {s:"IRC – Water Heaters",q:"Which of the following is required on a water heater to protect against 'thermal expansion' in a closed-loop system?",o:["A larger T&P valve","An expansion tank","A check valve","A second shutoff valve"],c:1,e:"2018 IRC §P2903.4 — An expansion tank protects against thermal expansion in closed systems."},
+  {s:"IRC – Traps",q:"What is the maximum number of fixtures that can be served by a single 2-inch floor drain trap?",o:["1","2","3","None; floor drains only serve themselves"],c:0,e:"A trap serves only one fixture."},
+  {s:"Definitions",q:"A 'Branch Interval' is a distance along a soil or waste stack that is at least ______ feet in height.",o:["4","8","10","12"],c:1,e:"2018 IRC Chapter 24 — A Branch Interval is at least 8 feet in height along a stack."},
+  {s:"IRC – Fuel Gas",q:"When testing fuel gas piping, the pressure gauge must have a range such that the highest end of the scale is not greater than ______ times the test pressure.",o:["2","5","10","1.5"],c:1,e:"2018 IRC §G2417.4 — Pressure gauge scale max must not exceed 5 times the test pressure."},
+  {s:"Definitions",q:"A 'Dry Vent' is a vent that:",o:["Is only for gas appliances","Never carries any liquid or waste","Is not connected to a stack","Only vents a single fixture"],c:1,e:"2018 IRC Chapter 24 — A Dry Vent never carries any liquid or waste."},
+
+  // ───── Round 5 (20 questions) — indices 182-201 ─────
+  {s:"IRC – Sizing",q:"What is the maximum number of water closets allowed to discharge into a 3-inch horizontal branch?",o:["1","2","3","4"],c:2,e:"2018 IRC Table P3005.4.2 — Maximum 3 water closets on a 3-inch horizontal branch."},
+  {s:"IRC – Water Heaters",q:"A water heater installed in a garage must be elevated so the ignition source is at least ______ inches above the garage floor.",o:["6","12","18","24"],c:2,e:"2018 IRC §P2801.7 — Ignition source must be at least 18 inches above the garage floor."},
+  {s:"IRC – Drainage",q:"What is the minimum slope (grade) required for horizontal drainage piping that is 2 inches or smaller in diameter?",o:["1/8 inch per foot","1/4 inch per foot","1/2 inch per foot","1 inch per foot"],c:1,e:"2018 IRC Table P3005.1 — Minimum 1/4 inch per foot slope for 2-inch and smaller horizontal drainage."},
+  {s:"IRC – Testing",q:"When air testing a DWV system, the system must hold ______ psi of air pressure for at least 15 minutes.",o:["5","10","60","100"],c:0,e:"2018 IRC §P2503.4 — Air test requires 5 psi held for at least 15 minutes."},
+  {s:"IRC – Traps",q:"A fixture trap must have a minimum liquid seal of ______ inches.",o:["1","2","3","4"],c:1,e:"2018 IRC §P3201.2 — Minimum trap liquid seal is 2 inches."},
+  {s:"IRC – Traps",q:"Which of these is the only type of 'S-trap' setup allowed by modern plumbing codes?",o:["A standard S-trap","A bell trap","None; S-traps are prohibited","An S-trap with a crown vent"],c:2,e:"2018 IRC §P3201.5 — S-traps are PROHIBITED in modern codes."},
+  {s:"IRC – Water Supply",q:"In a water distribution system, the maximum water pressure at a fixture must be limited to ______ psi.",o:["60","80","100","125"],c:1,e:"2018 IRC §P2903.3.1 — Maximum fixture water pressure is 80 psi."},
+  {s:"IRC – Water Supply",q:"What is the minimum size of a water service pipe from the meter to a typical single-family home?",o:["1/2 inch","3/4 inch","1 inch","1-1/4 inch"],c:1,e:"2018 IRC §P2903.7 — Minimum water service pipe is 3/4 inch."},
+  {s:"IRC – Fixtures",q:"When installing a kitchen sink with a garbage disposal, the disposal must discharge into a trap that is at least ______ inches in diameter.",o:["1-1/4","1-1/2","2","3"],c:1,e:"2018 IRC §P2719.1 — Disposal trap must be at least 1-1/2 inches."},
+  {s:"IRC – Water Supply",q:"'Purple pipe' or purple markings are used to identify pipes carrying:",o:["Natural gas","Non-potable (reclaimed) water","High-pressure steam","Medical oxygen"],c:1,e:"2018 IRC §P2901.2 — Purple identifies non-potable (reclaimed) water."},
+  {s:"IRC – Vents",q:"A horizontal vent pipe must be graded (sloped) to:",o:["Drain back to the drainage pipe it serves","Slope away from the building","Stay perfectly level","Carry waste during heavy flow"],c:0,e:"2018 IRC §P3104.2 — Vents must drain back to the drainage pipe they serve by gravity."},
+  {s:"IRC – Venting",q:"What is the maximum distance a 2-inch floor drain trap can be from its vent?",o:["5 feet","8 feet","10 feet","12 feet"],c:1,e:"2018 IRC Table P3105.1 — 2-inch trap arm maximum length is 8 feet."},
+  {s:"IRC – Fixtures",q:"A bathtub or shower valve must be of the ______ type to prevent scalding.",o:["Compression","Pressure-balance or thermostatic-mixing","Quarter-turn ball valve","Gate valve"],c:1,e:"2018 IRC §P2708.4 — Bathtub/shower valves must be pressure-balance or thermostatic-mixing to prevent scalding."},
+  {s:"IRC – Fuel Gas",q:"When testing a gas line with air, the test pressure must be at least ______ psi.",o:["3","15","30","60"],c:0,e:"2018 IRC §G2417.4.1 — Minimum test pressure is 3 psi (local ordinances may require more)."},
+  {s:"IRC – Vents",q:"What is the minimum required size for a vent stack serving a 4-inch soil stack?",o:["1-1/2 inches","2 inches","3 inches","4 inches"],c:1,e:"2018 IRC §P3113.1 — Vent stack must be half the diameter of the stack (2 inches for a 4-inch stack)."},
+  {s:"IRC – Traps",q:"All 'P-traps' must be ______ to allow for maintenance or inspection.",o:["Self-cleaning","Made of plastic","Transparent","Vented"],c:0,e:"2018 IRC §P3201.2 — Traps must be self-cleaning/self-scouring."},
+  {s:"IRC – Fixtures",q:"If a dishwasher is installed without a built-in air gap, the drain hose must be:",o:["Connected directly to the floor drain","Fastened to the underside of the counter (High Loop)","At least 1 inch in diameter","Made of copper"],c:1,e:"2018 IRC §P2717.2 — Without an air gap, use the High Loop method (fastened under the counter)."},
+  {s:"Definitions",q:"A 'Wet Vent' is a vent that also serves as a:",o:["Gas vent","Drain for other fixtures","Rainwater conductor","Cleanout"],c:1,e:"2018 IRC Chapter 24 — A Wet Vent also drains other fixtures."},
+  {s:"IRC – Installation",q:"What is the minimum clearance required between a water service pipe and a sewer pipe in the same trench?",o:["6 inches of compacted earth","12 inches of compacted earth","5 feet of undisturbed earth","No clearance is required if both are plastic"],c:1,e:"2018 IRC §P2903.2.1 — 12 inches of compacted earth between water service and sewer in the same trench."},
+  {s:"License Law (TX)",q:"A person who is not licensed or registered with the TSBPE may only perform plumbing work if:",o:["They are working on their own home","They are supervised by a Master Plumber via phone","They are working in a city under 5,000 people","None of the above; you must be licensed or registered to do plumbing in Texas"],c:0,e:"PLL §1301.051 — Homeowner's Exemption: you can work on your own primary residence yourself."},
+
+  // ───── Round 7 / Bonus (10 questions) — indices 202-211 ─────
+  {s:"License Law (TX)",q:"A Responsible Master Plumber (RMP) must provide the Board with a Certificate of Insurance (COI) for at least ______ coverage.",o:["$100,000","$300,000","$500,000","$1,000,000"],c:1,e:"PLL §1301.552 — RMP must maintain $300,000 insurance coverage on file with TSBPE."},
+  {s:"IRC – Drainage",q:"What is the minimum diameter for a building sewer in Texas?",o:["2 inches","3 inches","4 inches","6 inches"],c:1,e:"2018 IRC Table P3005.4.2 — Code minimum is 3 inches for single-family dwellings (many local cities require 4 inches)."},
+  {s:"License Law (TX)",q:"If a plumbing company's RMP leaves or loses their license, how long does the company have to secure a new RMP before they must stop advertising and contracting?",o:["10 days","30 days","90 days","There is no grace period; it must be immediate"],c:3,e:"PLL §1301.351(a-1) — No grace period. The company cannot contract for plumbing work without an RMP."},
+  {s:"IRC – Water Heaters",q:"When a water heater is located in an attic, the passageway to the unit must be at least ______ inches wide and have a solid floor.",o:["22","24","30","36"],c:1,e:"2018 IRC §P2801.4 — Attic passageway must be at least 24 inches wide with a solid floor."},
+  {s:"IRC – Backflow",q:"A 'Backwater Valve' is required on a fixture if the flood level rim of that fixture is lower than the:",o:["Finished floor","Curb height","Next upstream manhole cover","Roof line"],c:2,e:"2018 IRC §P3008.1 — Backwater valve required when flood level rim is below the next upstream manhole cover."},
+  {s:"License Law (TX)",q:"Which license type is required to work on a medical gas system in a hospital?",o:["Master Plumber","Journeyman Plumber","Any license holder with a Medical Gas Piping Installation Endorsement","A Plumber's Apprentice with 1 year of experience"],c:2,e:"TSBPE Board Rule §363.1 — Requires a Medical Gas Piping Installation Endorsement on top of any license."},
+  {s:"License Law (TX)",q:"Continuing Professional Education (CPE) for license renewal must be completed every:",o:["6 months","1 year","2 years","3 years"],c:1,e:"TSBPE Board Rule §365.14 — CPE must be completed every year for license renewal."},
+  {s:"IRC – Cleanouts",q:"What is the maximum distance between cleanouts on a 4-inch horizontal drainage line?",o:["50 feet","75 feet","100 feet","150 feet"],c:2,e:"2018 IRC §P3005.2.2 — Maximum 100 feet between cleanouts on horizontal drainage."},
+  {s:"Definitions",q:"A 'Vacuum Breaker' is used to prevent what condition?",o:["High pressure","Back-siphonage","Water hammer","Air pockets"],c:1,e:"2018 IRC Chapter 24 — Vacuum breakers prevent back-siphonage."},
+  {s:"IRC – Fire Sprinklers",q:"In a 'Multi-purpose Residential Fire Sprinkler System,' the piping is combined with which other system?",o:["The gas system","The DWV system","The cold water distribution system","The HVAC condensate line"],c:2,e:"2018 IRC §P2904.1 — Multipurpose residential fire sprinkler systems are combined with the cold water distribution system."},
 ];
 
 // ──────────────────────────────────────────────────────────────
-// Topic distribution (total = 75 regular Qs per exam)
-// Each exam adds 5 unique trap Qs = 80 total = 100 pts
+// EXAMS 1-3 — Topic distribution (total = 80 regular Qs per exam)
+// Each exam adds 5 unique trap Qs = 85 questions total
 // ──────────────────────────────────────────────────────────────
 const TOPIC_DISTRIBUTION = [
-  {range: [0,  19], count: 15},  // Definitions
-  {range: [20, 29], count: 8},   // General Regulations
-  {range: [30, 36], count: 5},   // Fixtures
-  {range: [37, 47], count: 8},   // Water Supply
-  {range: [48, 55], count: 6},   // Sanitary Drainage
-  {range: [56, 65], count: 7},   // Vents
-  {range: [66, 71], count: 5},   // Traps
-  {range: [72, 81], count: 7},   // Fuel Gas
-  {range: [82, 92], count: 8},   // Water Heaters
-  {range: [93,101], count: 6},   // License Law
+  {range: [0,  19], count: 16},  // Definitions (20 available)
+  {range: [20, 29], count: 9},   // General Regulations (10 available)
+  {range: [30, 36], count: 6},   // Fixtures (7 available)
+  {range: [37, 47], count: 9},   // Water Supply (11 available)
+  {range: [48, 55], count: 7},   // Sanitary Drainage (8 available)
+  {range: [56, 65], count: 8},   // Vents (10 available)
+  {range: [66, 71], count: 6},   // Traps (6 available — all used)
+  {range: [72, 81], count: 7},   // Fuel Gas (10 available)
+  {range: [82, 92], count: 6},   // Water Heaters (11 available)
+  {range: [93,101], count: 6},   // License Law (9 available)
 ];
 
 // Trap question index sets per exam
@@ -185,3 +291,19 @@ const TRAP_SETS = {
   2: [107, 108, 109, 110, 111],
   3: [112, 113, 114, 115, 116],
 };
+
+// ──────────────────────────────────────────────────────────────
+// EXAM 4 — IRC 2018 Practice Questions
+// 95 questions from "Preguntas para practicar examen" (117-211)
+// + 15 trap questions (102-116) = 110 questions total
+// ──────────────────────────────────────────────────────────────
+const EXAM_4_REGULAR_INDICES = (() => {
+  const arr = [];
+  for (let i = 117; i <= 211; i++) arr.push(i);
+  return arr;
+})();
+const EXAM_4_TRAP_INDICES = (() => {
+  const arr = [];
+  for (let i = 102; i <= 116; i++) arr.push(i);
+  return arr;
+})();
