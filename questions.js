@@ -1,522 +1,309 @@
 /* ═══════════════════════════════════════════════════════════════
-   Texas Plumbing Prep — Exam Engine
+   Texas Plumbing Prep — Question Bank
    © 2025 Oliver Granja – ViscaCode
 
-   Handles:
-     - Exam selection and building (3 unique versions)
-     - Answer option shuffling with A/B/C/D balance
-     - Timer (5 minutes with color-coded warnings)
-     - Question rendering and navigation
-     - Results calculation and review display
+   Structure:
+     - Indices   0-101 : regular questions across 10 topics
+     - Indices 102-116 : 15 trap questions (5 per exam 1-3)
+     - Indices 117-211 : 95 questions from "Preguntas para
+                         practicar examen" (used by Exam 4)
    ═══════════════════════════════════════════════════════════════ */
 
-(function() {
-  'use strict';
-
-  // ──────────────────────────────────────────────────────────────
-  // CONFIGURATION
-  // ──────────────────────────────────────────────────────────────
-  const TIME_PER_QUESTION = 300;       // 5 minutes per question (in seconds)
-  const TOTAL_QUESTIONS = 80;
-  const POINTS_PER_Q = 100 / TOTAL_QUESTIONS; // 1.25 pts each
-  const PASS_THRESHOLD = 70;           // points needed to pass
-  const LETTERS = ['A', 'B', 'C', 'D'];
-
-  // ──────────────────────────────────────────────────────────────
-  // STATE
-  // ──────────────────────────────────────────────────────────────
-  let selectedExam = null;
-  let examQuestions = [];
-  let currentIndex = 0;
-  let userAnswers = [];
-  let timerInterval = null;
-  let secondsLeft = TIME_PER_QUESTION;
-  let examsCache = null;
-
-  // ──────────────────────────────────────────────────────────────
-  // SEEDED RANDOMIZATION
-  // Deterministic shuffles so each exam version is reproducible
-  // ──────────────────────────────────────────────────────────────
-
-  /**
-   * Fisher-Yates shuffle using a linear congruential generator
-   * seeded with the provided number. Returns a new array.
-   */
-  function seededShuffle(arr, seed) {
-    const result = arr.slice();
-    let s = seed >>> 0;
-    for (let i = result.length - 1; i > 0; i--) {
-      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
-      const j = s % (i + 1);
-      [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
-  }
-
-  /**
-   * Generate all 24 permutations of [0,1,2,3].
-   */
-  function allPermutations() {
-    const perms = [];
-    const permute = (arr, start) => {
-      if (start === arr.length - 1) {
-        perms.push(arr.slice());
-        return;
-      }
-      for (let i = start; i < arr.length; i++) {
-        [arr[start], arr[i]] = [arr[i], arr[start]];
-        permute(arr, start + 1);
-        [arr[start], arr[i]] = [arr[i], arr[start]];
-      }
-    };
-    permute([0, 1, 2, 3], 0);
-    return perms;
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // EXAM BUILDER
-  // ──────────────────────────────────────────────────────────────
-
-  /**
-   * Build a single exam version:
-   *   1. Pick N questions from each topic using the seed
-   *   2. Combine with the exam's trap questions
-   *   3. Shuffle full ordering
-   *   4. Shuffle each question's options so correct answers
-   *      alternate across A/B/C/D (no 3-in-a-row same letter)
-   */
-  function buildExam(seed, trapIndices) {
-    // Step 1: pick regular questions by topic
-    const regularIndices = [];
-    TOPIC_DISTRIBUTION.forEach(({ range, count }) => {
-      const topicPool = [];
-      for (let i = range[0]; i <= range[1]; i++) topicPool.push(i);
-      regularIndices.push(...seededShuffle(topicPool, seed + range[0]).slice(0, count));
-    });
-
-    // Step 2 & 3: combine and shuffle overall order
-    const combinedIndices = seededShuffle(
-      [...regularIndices, ...trapIndices],
-      seed * 7
-    );
-
-    // Step 4: shuffle each question's options
-    return shuffleQuestionOptions(combinedIndices, seed);
-  }
-
-  /**
-   * Shuffle the 4 options of each question such that:
-   *   - No 3 consecutive questions share the same correct-letter index
-   *   - Distribution of correct letters stays reasonably balanced
-   */
-  function shuffleQuestionOptions(indices, seed) {
-    let s = (seed * 13 + 7) >>> 0;
-    const rng = () => {
-      s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
-      return s;
-    };
-
-    const result = [];
-    const letterCount = [0, 0, 0, 0];
-    let prevLetter = -1;
-    let prevPrevLetter = -1;
-    const idealPerLetter = Math.ceil(indices.length / 4);
-
-    for (let qi = 0; qi < indices.length; qi++) {
-      const original = QUESTION_BANK[indices[qi]];
-      const perms = allPermutations();
-
-      // Random-order the permutations so each question tries them differently
-      for (let i = perms.length - 1; i > 0; i--) {
-        const j = rng() % (i + 1);
-        [perms[i], perms[j]] = [perms[j], perms[i]];
-      }
-
-      // Find first permutation that satisfies the constraints
-      let chosenPerm = null;
-      for (const perm of perms) {
-        const newCorrect = perm.indexOf(original.c);
-        // Rule 1: no 3-in-a-row same letter
-        if (newCorrect === prevLetter && newCorrect === prevPrevLetter) continue;
-        // Rule 2: soft balance — don't exceed ideal + 2 per letter
-        if (letterCount[newCorrect] >= idealPerLetter + 2) continue;
-        chosenPerm = perm;
-        break;
-      }
-      if (!chosenPerm) chosenPerm = perms[0];
-
-      const newOptions = chosenPerm.map(oldIdx => original.o[oldIdx]);
-      const newCorrectIdx = chosenPerm.indexOf(original.c);
-
-      result.push({
-        s: original.s,
-        q: original.q,
-        o: newOptions,
-        c: newCorrectIdx,
-        e: original.e
-      });
-
-      letterCount[newCorrectIdx]++;
-      prevPrevLetter = prevLetter;
-      prevLetter = newCorrectIdx;
-    }
-
-    return result;
-  }
-
-  /**
-   * Build all 3 exam versions on demand (cached).
-   */
-  function getExams() {
-    if (examsCache) return examsCache;
-    examsCache = [
-      buildExam(1001, TRAP_SETS[1]),
-      buildExam(2002, TRAP_SETS[2]),
-      buildExam(3003, TRAP_SETS[3]),
-    ];
-    return examsCache;
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // UI: START SCREEN
-  // ──────────────────────────────────────────────────────────────
-
-  function selectExam(examNum) {
-    selectedExam = examNum;
-    document.querySelectorAll('.exam-card').forEach(card => {
-      card.classList.remove('selected');
-    });
-    document.getElementById(`card-${examNum}`).classList.add('selected');
-
-    const startBtn = document.getElementById('btn-start');
-    startBtn.disabled = false;
-    startBtn.textContent = `START EXAM ${examNum} →`;
-  }
-
-  function startExam() {
-    if (!selectedExam) return;
-
-    examQuestions = getExams()[selectedExam - 1];
-    userAnswers = new Array(examQuestions.length).fill(null);
-    currentIndex = 0;
-    secondsLeft = TIME_PER_QUESTION;
-
-    document.getElementById('screen-start').style.display = 'none';
-    document.getElementById('screen-quiz').style.display = 'block';
-    document.getElementById('timer-bar').style.display = 'flex';
-
-    renderQuestion();
-    startTimer();
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // TIMER (per-question: 5 minutes each)
-  //   - Resets to 5:00 on every new question
-  //   - Pauses when the user selects an answer (to read feedback)
-  //   - If time runs out, marks the question as unanswered and auto-advances
-  // ──────────────────────────────────────────────────────────────
-
-  function startTimer() {
-    clearInterval(timerInterval);
-    updateTimerDisplay();
-    timerInterval = setInterval(() => {
-      secondsLeft--;
-      updateTimerDisplay();
-      if (secondsLeft <= 0) {
-        clearInterval(timerInterval);
-        handleQuestionTimeout();
-      }
-    }, 1000);
-  }
-
-  /**
-   * Reset timer to full time and start counting again.
-   * Called each time a new question is shown.
-   */
-  function resetTimer() {
-    secondsLeft = TIME_PER_QUESTION;
-    startTimer();
-  }
-
-  /**
-   * Stop the timer without resetting. Used when the user answers
-   * so they can read the feedback without time pressure.
-   */
-  function pauseTimer() {
-    clearInterval(timerInterval);
-    timerInterval = null;
-  }
-
-  /**
-   * Called when the 5-minute limit for a single question runs out.
-   *   - Leave the question unanswered (null)
-   *   - If it's the last question → finish exam
-   *   - Otherwise → auto-advance to next question
-   */
-  function handleQuestionTimeout() {
-    if (currentIndex === examQuestions.length - 1) {
-      // Last question — end exam
-      document.getElementById('timeout-overlay').classList.add('show');
-    } else {
-      // Auto-advance
-      currentIndex++;
-      renderQuestion();
-      resetTimer();
-    }
-  }
-
-  function updateTimerDisplay() {
-    const minutes = Math.floor(secondsLeft / 60);
-    const seconds = secondsLeft % 60;
-    const display = document.getElementById('time-display');
-    const progress = document.getElementById('time-progress');
-
-    display.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    progress.style.width = `${(secondsLeft / TIME_PER_QUESTION) * 100}%`;
-
-    // Reset status classes
-    display.className = '';
-    progress.className = '';
-
-    // Apply warning/danger states (last 2 min yellow, last 1 min red)
-    if (secondsLeft <= 60) {
-      display.classList.add('danger');
-      progress.classList.add('danger');
-    } else if (secondsLeft <= 120) {
-      display.classList.add('warning');
-      progress.classList.add('warning');
-    }
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // UI: QUIZ SCREEN
-  // ──────────────────────────────────────────────────────────────
-
-  function renderQuestion() {
-    const question = examQuestions[currentIndex];
-    const userAnswer = userAnswers[currentIndex];
-    const isTrap = question.s.includes('Trap');
-
-    // Build options HTML
-    const optionsHTML = question.o.map((optText, i) => {
-      let cssClass = '';
-      if (userAnswer !== null) {
-        if (i === question.c) cssClass = 'correct';
-        else if (i === userAnswer) cssClass = 'wrong';
-        else cssClass = 'reveal';
-      }
-      return `
-        <li>
-          <button class="option-btn ${cssClass}" data-option="${i}" ${userAnswer !== null ? 'disabled' : ''}>
-            <span class="opt-letter">${LETTERS[i]}</span>
-            <span>${optText}</span>
-          </button>
-        </li>`;
-    }).join('');
-
-    // Section/trap pill
-    const pillHTML = isTrap
-      ? `<span class="trap-pill">⚠️ Trap Question</span>`
-      : `<span class="section-pill">${question.s}</span>`;
-
-    // Feedback box (shown after answering)
-    const feedbackHTML = userAnswer !== null
-      ? `<div class="feedback-box ${userAnswer === question.c ? 'correct-fb' : 'wrong-fb'}">
-           ${userAnswer === question.c ? '✅' : '❌'} ${question.e}
-         </div>`
-      : '';
-
-    // Build card
-    document.getElementById('question-container').innerHTML = `
-      <div class="question-card">
-        <div class="q-tag">
-          Question ${currentIndex + 1} of ${examQuestions.length} &nbsp;·&nbsp; 1.25 pts
-          ${pillHTML}
-        </div>
-        <p class="q-text">${question.q}</p>
-        <ul class="options-list">${optionsHTML}</ul>
-        ${feedbackHTML}
-      </div>`;
-
-    // Attach option click handlers
-    document.querySelectorAll('.option-btn').forEach(btn => {
-      btn.addEventListener('click', () => selectAnswer(parseInt(btn.dataset.option, 10)));
-    });
-
-    // Update counter
-    document.getElementById('q-counter').textContent =
-      `Q ${currentIndex + 1} / ${examQuestions.length} — Exam ${selectedExam}`;
-
-    // Update nav buttons
-    document.getElementById('btn-prev').disabled = currentIndex === 0;
-
-    const nextBtn = document.getElementById('btn-next');
-    const isLastQuestion = currentIndex === examQuestions.length - 1;
-    nextBtn.textContent = isLastQuestion ? 'Finish Exam' : 'Next →';
-    nextBtn.disabled = userAnswers[currentIndex] === null;
-    nextBtn.onclick = isLastQuestion ? finishExam : () => goToQuestion(1);
-  }
-
-  function selectAnswer(optionIndex) {
-    if (userAnswers[currentIndex] !== null) return;
-    userAnswers[currentIndex] = optionIndex;
-    // Pause timer once answered — gives user time to read explanation
-    pauseTimer();
-    renderQuestion();
-  }
-
-  function goToQuestion(direction) {
-    const nextIdx = currentIndex + direction;
-    if (nextIdx < 0 || nextIdx >= examQuestions.length) return;
-    currentIndex = nextIdx;
-    renderQuestion();
-    // If the new question has NOT been answered yet → reset timer to 5:00
-    // If it HAS been answered already (user is navigating back/forward) → keep timer paused
-    if (userAnswers[currentIndex] === null) {
-      resetTimer();
-    } else {
-      pauseTimer();
-      // Show "answered" state in timer
-      document.getElementById('time-display').textContent = '✓ Answered';
-      document.getElementById('time-progress').style.width = '100%';
-    }
-  }
-
-  function finishExam() {
-    if (userAnswers[currentIndex] === null) return;
-    clearInterval(timerInterval);
-    showResults();
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // UI: RESULT SCREEN
-  // ──────────────────────────────────────────────────────────────
-
-  function showResults() {
-    clearInterval(timerInterval);
-    document.getElementById('timeout-overlay').classList.remove('show');
-    document.getElementById('screen-quiz').style.display = 'none';
-    document.getElementById('timer-bar').style.display = 'none';
-    document.getElementById('screen-result').style.display = 'block';
-    window.scrollTo(0, 0);
-
-    // Calculate stats
-    const correctCount = userAnswers.reduce(
-      (acc, ans, i) => acc + (ans === examQuestions[i].c ? 1 : 0), 0
-    );
-    const wrongCount = userAnswers.reduce(
-      (acc, ans, i) => acc + (ans !== null && ans !== examQuestions[i].c ? 1 : 0), 0
-    );
-    const skippedCount = userAnswers.filter(a => a === null).length;
-    const points = parseFloat((correctCount * POINTS_PER_Q).toFixed(1));
-    const passed = points >= PASS_THRESHOLD;
-
-    // Update score ring
-    const scoreNum = document.getElementById('score-num');
-    const scoreRing = document.getElementById('score-ring');
-    scoreNum.textContent = points % 1 === 0 ? points : points.toFixed(1);
-    scoreRing.style.borderColor = passed ? 'var(--green)' : 'var(--red)';
-    scoreNum.style.color = passed ? 'var(--green)' : 'var(--red)';
-
-    // Update messages
-    document.getElementById('result-title').textContent =
-      passed ? '🎉 EXAM PASSED!' : '📚 KEEP STUDYING';
-    document.getElementById('result-msg').textContent = passed
-      ? `Great job! You scored ${points}/100 on Exam ${selectedExam} and met the 70-point minimum to pass.`
-      : `You scored ${points}/100 on Exam ${selectedExam}. You need at least 70 points. Review the answers below and try again!`;
-
-    // Update stat boxes
-    const statCorrect = document.getElementById('stat-correct');
-    const statWrong = document.getElementById('stat-wrong');
-    const statSkipped = document.getElementById('stat-skipped');
-    const statPts = document.getElementById('stat-pts');
-
-    statCorrect.textContent = correctCount;
-    statCorrect.classList.add('correct-val');
-    statWrong.textContent = wrongCount;
-    statWrong.classList.add('wrong-val');
-    statSkipped.textContent = skippedCount;
-    statSkipped.classList.add('skipped-val');
-    statPts.textContent = points;
-    statPts.classList.add('pts-val');
-
-    // Build review list
-    document.getElementById('review-list').innerHTML = examQuestions.map((q, i) => {
-      const userAns = userAnswers[i];
-      const isCorrect = userAns === q.c;
-      const icon = userAns === null ? '⬜' : isCorrect ? '✅' : '❌';
-
-      let answerLine;
-      if (userAns === null) {
-        answerLine = `<span style="color:var(--muted)">Not answered</span> &nbsp;·&nbsp;
-                      Correct: <span class="correct-ans">${LETTERS[q.c]}. ${q.o[q.c]}</span>`;
-      } else if (isCorrect) {
-        answerLine = `Your answer: <span class="correct-ans">${LETTERS[userAns]}. ${q.o[userAns]}</span>`;
-      } else {
-        answerLine = `Your answer: <span class="wrong-ans">${LETTERS[userAns]}. ${q.o[userAns]}</span> &nbsp;·&nbsp;
-                      Correct: <span class="correct-ans">${LETTERS[q.c]}. ${q.o[q.c]}</span>`;
-      }
-
-      const explanationHTML = !isCorrect
-        ? `<div class="review-a" style="margin-top:5px;font-style:italic;color:var(--muted)">💡 ${q.e}</div>`
-        : '';
-
-      return `
-        <div class="review-item">
-          <div class="review-icon">${icon}</div>
-          <div>
-            <div class="review-q">Q${i + 1}. ${q.q}</div>
-            <div class="review-a">${answerLine}</div>
-            ${explanationHTML}
-          </div>
-        </div>`;
-    }).join('');
-  }
-
-  function restartExam() {
-    selectedExam = null;
-    document.getElementById('screen-result').style.display = 'none';
-    document.getElementById('screen-start').style.display = 'block';
-    document.querySelectorAll('.exam-card').forEach(card => {
-      card.classList.remove('selected');
-    });
-
-    const startBtn = document.getElementById('btn-start');
-    startBtn.disabled = true;
-    startBtn.textContent = 'SELECT AN EXAM TO BEGIN';
-
-    window.scrollTo(0, 0);
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // INITIALIZATION
-  // ──────────────────────────────────────────────────────────────
-
-  function init() {
-    // Exam card click handlers
-    document.querySelectorAll('.exam-card').forEach(card => {
-      card.addEventListener('click', () => {
-        selectExam(parseInt(card.dataset.exam, 10));
-      });
-    });
-
-    // Start button
-    document.getElementById('btn-start').addEventListener('click', startExam);
-
-    // Navigation buttons
-    document.getElementById('btn-prev').addEventListener('click', () => goToQuestion(-1));
-
-    // Restart button
-    document.getElementById('btn-restart').addEventListener('click', restartExam);
-
-    // Timeout "View Results" button
-    document.getElementById('btn-timeout-view').addEventListener('click', showResults);
-  }
-
-  // Run when DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+const QUESTION_BANK = [
+
+  // ──────────── 0-19: DEFINITIONS ────────────
+  {s:"Definitions",q:"What is an 'Air Gap' in a plumbing system?",o:["A mechanical joint between two metal pipes","The vertical distance between the water supply opening and the flood level rim of a receptacle","A vent pipe connecting individual vents to a stack vent","A backflow prevention valve on pressurized lines"],c:1,e:"An Air Gap is the vertical distance between the opening of the water supply and the flood level rim of a receptacle — it prevents backflow contamination."},
+  {s:"Definitions",q:"Which best defines a 'Branch' in a plumbing system?",o:["Any part of the piping system except mains, stacks, or risers","The primary pipe to which all branches connect","The extension of a soil stack above the highest fixture","The lowest part of the drainage system"],c:0,e:"A Branch is any part of the piping system except mains, stacks, or risers."},
+  {s:"Definitions",q:"What is a 'Branch Vent'?",o:["A vent that also serves as a drain","A vent connecting individual vents with a stack vent or vent stack","A vertical vent providing air circulation to the entire system","A vent installed within two pipe diameters of a trap"],c:1,e:"A Branch Vent connects individual vents with a stack vent or vent stack."},
+  {s:"Definitions",q:"What is a 'Building Drain'?",o:["The pipe conveying sewage from building to public sewer","The lowest part of the drainage system receiving waste from soil and waste pipes, connecting to the building sewer","A vertical pipe running through multiple floors","A drain pipe serving only one fixture"],c:1,e:"The Building Drain is the lowest part of the drainage system which receives waste from soil and waste pipes and connects to the building sewer."},
+  {s:"Definitions",q:"What is a 'Building Sewer'?",o:["The lowest part of the drainage system inside the building","Drainage piping conveying waste from the building drain to the public sewer or disposal system","A vertical pipe running through multiple floors","A cleanout access opening"],c:1,e:"The Building Sewer is drainage piping that conveys waste from the building drain to the public sewer or disposal system."},
+  {s:"Definitions",q:"What is a 'Clean Out'?",o:["A valve that stops flow in a drain line","An access opening in the drainage system used to remove obstructions","A trap with a removable plug","A floor drain cover"],c:1,e:"A Clean Out is an access opening in the drainage system used to remove obstructions."},
+  {s:"Definitions",q:"What is a 'Combination Fixture'?",o:["A fixture with both hot and cold water supply","Two or three compartment sink drained by a continuous waste connected to one trap","A fixture serving as both toilet and sink","A fixture with an integral trap and overflow"],c:1,e:"A Combination Fixture is a two or three compartment sink drained by a continuous waste connected to one trap."},
+  {s:"Definitions",q:"What is a 'Cross Connection'?",o:["A T-fitting connecting two drain lines","A point where two vent pipes meet","An actual or potential tie between potable water and any source of pollution or contamination","A mechanical joint between pipes of different materials"],c:2,e:"A Cross Connection is an actual or potential tie between potable water and any source of pollution or contamination."},
+  {s:"Definitions",q:"What is 'Developed Length'?",o:["Total pipe run from fixture to stack","A measurement of piping taken along the centerline of pipe and fittings","Distance from trap to vent connection","Length of exposed pipe above the flood level rim"],c:1,e:"Developed Length is a measurement of piping taken along the centerline of pipe and fittings."},
+  {s:"Definitions",q:"What is the 'Flood Level Rim'?",o:["Minimum water level for fixture operation","The upper rim of a fixture where water would overflow","Distance between trap and vent","Maximum allowable water pressure at the fixture"],c:1,e:"The Flood Level Rim is the upper rim of a fixture from which water would overflow."},
+  {s:"Definitions",q:"What is 'Indirect Waste'?",o:["Waste from a fixture without a trap","A waste pipe draining through an air gap to the drainage system","A drain line that bypasses the main stack","A waste pipe connected above the flood level rim"],c:1,e:"Indirect Waste is a waste pipe that drains through an air gap to the drainage system."},
+  {s:"Definitions",q:"What is an 'Individual Vent'?",o:["A vent shared between two fixtures","A pipe installed to vent one fixture trap, connecting above or terminating in open air","A vertical pipe providing air to all fixtures on one floor","A vent connecting only to the main stack"],c:1,e:"An Individual Vent is installed to vent one fixture trap. It may connect to the vent system above the fixture or terminate in the open air."},
+  {s:"Definitions",q:"What is the 'Main' in a plumbing system?",o:["The largest vent in the system","The primary or principal pipe to which branches are connected","The pipe running horizontally under the building","The pipe from the water meter to the building"],c:1,e:"The Main is the primary or principal pipe to which branches are connected."},
+  {s:"Definitions",q:"What is 'Potable Water'?",o:["Water treated with chlorine","Water sufficiently free of impurities to meet public health standards","Water mechanically filtered","Hot water at a safe temperature for consumption"],c:1,e:"Potable water is water sufficiently free of impurities to meet public health standards."},
+  {s:"Definitions",q:"What is 'Rough In'?",o:["Unfinished plumbing work","Parts of the plumbing system installed prior to the installation of fixtures","Exposed piping in an unfinished wall","The initial pressure test of a plumbing system"],c:1,e:"Rough In refers to parts of the plumbing system installed prior to the installation of fixtures."},
+  {s:"Definitions",q:"What is a 'Soil Pipe'?",o:["A buried pipe under the slab","Drain pipe conveying sewage containing fecal matter","A pipe used to drain irrigation water","Any pipe installed underground"],c:1,e:"A Soil Pipe is a drain pipe conveying sewage containing fecal matter."},
+  {s:"Definitions",q:"What is a 'Stack Vent'?",o:["A vertical vent providing air to the entire drainage system","The extension of a soil or waste stack above the highest fixture served","A vent connecting branch vents to the main stack","A vent that also serves as a drain"],c:1,e:"The Stack Vent is the extension of a soil or waste stack above the highest fixture served."},
+  {s:"Definitions",q:"What is a 'Trap Seal'?",o:["The access cover on a cleanout","The distance from the weir to the top of the dip of the trap","The mechanical device that closes the trap","The rubber gasket sealing the trap to the drain"],c:1,e:"The Trap Seal is the distance from the weir to the top of the dip of the trap — must be 2 to 4 inches."},
+  {s:"Definitions",q:"What is a 'Vacuum Breaker'?",o:["A device that creates vacuum for drain testing","A backflow preventer that allows air in to break a vacuum being pulled on a system","A pressure reducing valve","A check valve for potable water lines"],c:1,e:"A Vacuum Breaker is a backflow preventer that allows air into a system to break a vacuum."},
+  {s:"Definitions",q:"What is a 'Vent Stack'?",o:["The upper extension of the soil stack","A vertical vent pipe providing air circulation to and from the drainage system","A vent that also conveys waste","A branch vent connected to the stack"],c:1,e:"A Vent Stack is a vertical vent pipe providing air circulation to and from the drainage system."},
+
+  // ──────────── 20-29: GENERAL REGULATIONS ────────────
+  {s:"General Regulations",q:"What must appear on each length of pipe and each fitting, trap, fixture, and device?",o:["Installation date stamp","Manufacturer's identification","Inspector's approval tag","Pressure rating label"],c:1,e:"Manufacturers' identification must be on each length of pipe and each fitting, trap, fixture, and device."},
+  {s:"General Regulations",q:"How must pipes be protected when passing under or through walls?",o:["Wrapped with insulation","Protected from breakage","Coated with sealant","Enclosed in conduit"],c:1,e:"Pipes shall be protected from breakage when passing under or through walls."},
+  {s:"General Regulations",q:"What is the maximum horizontal support spacing for copper pipe smaller than 1½ inches?",o:["4 feet","6 feet","8 feet","10 feet"],c:1,e:"Copper must be supported horizontally every 6 feet for small pipe (under 1½ inches)."},
+  {s:"General Regulations",q:"How must drainage pipe be tested?",o:["10 psi air for 30 minutes","A 10-foot head of water or air at 5 psi","15 psi water for 15 minutes","Inert gas at 8 psi"],c:1,e:"Drainage pipe shall be tested with a 10-foot head of water or air at 5 psi."},
+  {s:"General Regulations",q:"What is the minimum center-to-center spacing between two water closets?",o:["24 inches","30 inches","36 inches","18 inches"],c:1,e:"Water closets shall be set no closer than 30 inches center to center or 15 inches from a side wall."},
+  {s:"General Regulations",q:"What material must water closet screws and bolts be made of?",o:["Stainless steel","Zinc","Brass","Plastic"],c:2,e:"Water closet screws and bolts shall be brass."},
+  {s:"General Regulations",q:"How must joints where fixtures contact walls and floors be treated?",o:["Grouted with tile grout","Caulked with polyurethane","Sealed water tight","Left open for inspection"],c:2,e:"Joints where fixtures contact wall and floors shall be sealed water tight."},
+  {s:"General Regulations",q:"What must be provided for concealed slip-joint connections?",o:["A watertight enclosure","Access","Insulation wrap","A pressure test port"],c:1,e:"Access must be provided to concealed slip-joint connections."},
+  {s:"General Regulations",q:"What is the maximum horizontal support spacing for copper pipe 1½ inches or larger?",o:["6 feet","8 feet","10 feet","12 feet"],c:2,e:"Copper must be supported horizontally every 10 feet for pipe 1½ inches or larger."},
+  {s:"General Regulations",q:"Who is responsible for maintaining the plumbing system in a safe condition?",o:["The licensed plumber who installed it","The owner or owner's agent","The city inspector","The insurance company"],c:1,e:"The owner or owner's agent is responsible for maintaining the plumbing system in a safe condition."},
+
+  // ──────────── 30-36: FIXTURES ────────────
+  {s:"Fixtures",q:"What material must plumbing fixtures be made of?",o:["Porcelain only","Approved, smooth, impervious material","Cast iron or stainless steel only","Any material approved by the inspector"],c:1,e:"Plumbing fixtures must be made of approved, smooth, impervious material."},
+  {s:"Fixtures",q:"What is the maximum gallons per flush for a water closet tank?",o:["1.0 gpf","1.2 gpf","1.6 gpf","2.0 gpf"],c:2,e:"Water closet tanks shall consume no more than 1.6 gallons per flush."},
+  {s:"Fixtures",q:"What anti-siphon device must a water closet tank include?",o:["A pressure relief valve","An anti-siphon ball cock with a refill tube to refill the trap seal","A check valve on the fill line","A vacuum breaker on the overflow"],c:1,e:"Water closet tanks must have an anti-siphon ball cock with a refill tube to refill the trap seal."},
+  {s:"Fixtures",q:"Which water closet bend is acceptable per code?",o:["3 inch by 2 inch","4 inch by 3 inch","5 inch by 4 inch","6 inch by 4 inch"],c:1,e:"A 4 inch by 3 inch water closet bend is acceptable."},
+  {s:"Fixtures",q:"What is the minimum inside dimension for a shower?",o:["24 inches","30 inches","32 inches","36 inches"],c:1,e:"A shower must be at least 30 inches inside dimension."},
+  {s:"Fixtures",q:"Where must fixture overflows drain to?",o:["The building drain","The inlet (fixture) side of the trap","The vent stack","The waste branch above the trap"],c:1,e:"Overflows, if on a fixture, must drain to the inlet (fixture) side of the trap."},
+  {s:"Fixtures",q:"What is the minimum distance from the center of a water closet to a side wall?",o:["12 inches","15 inches","18 inches","24 inches"],c:1,e:"Water closets shall be set no closer than 15 inches from a side wall."},
+
+  // ──────────── 37-47: WATER SUPPLY ────────────
+  {s:"Water Supply",q:"What is the minimum size for a residential water supply line?",o:["½ inch","¾ inch","1 inch","1¼ inch"],c:1,e:"Water supply shall be a minimum of ¾ inch."},
+  {s:"Water Supply",q:"What is the maximum allowable water pressure in the system?",o:["60 psi","80 psi","100 psi","120 psi"],c:1,e:"Water supply shall have a pressure of no more than 80 psi."},
+  {s:"Water Supply",q:"What device controls water hammer caused by high-velocity, quick-closing valves?",o:["Pressure reducing valves","Water hammer arrestors","Check valves","Air chambers"],c:1,e:"Water hammer shall be controlled by water hammer arrestors."},
+  {s:"Water Supply",q:"What is the minimum copper type required for a water service pipe?",o:["Type K","Type L","Type M","Type DWV"],c:2,e:"Copper water service pipe must be a minimum of Type M."},
+  {s:"Water Supply",q:"Where should pipe joint compound be applied?",o:["Female threads only","Both male and female threads","Male threads only","Do not use — use Teflon tape instead"],c:2,e:"Pipe joint compound shall be applied to male threads only."},
+  {s:"Water Supply",q:"What is the maximum lead content allowed in solder for water supply piping?",o:["0.5%","0.2%","1.0%","2.0%"],c:1,e:"Solder must be lead-free — 0.2 percent or less."},
+  {s:"Water Supply",q:"How are joints in PVC water supply pipe made?",o:["With oakum and lead","Mechanical compression only","With solvent cement and purple primer","With threaded connections only"],c:2,e:"Joints in PVC are made with solvent cement and purple primer."},
+  {s:"Water Supply",q:"What must be installed on the supply to each fixture?",o:["A check valve","A pressure gauge","A water supply shutoff valve","A water hammer arrestor"],c:2,e:"A water supply shutoff valve must be installed on the supply to each fixture."},
+  {s:"Water Supply",q:"What must cross connections have installed?",o:["A ball valve","Air gaps or protective devices","A check valve only","A pressure reducing valve"],c:1,e:"Cross connections must have air gaps or protective devices installed."},
+  {s:"Water Supply",q:"What is required when connecting dissimilar metals in a water supply system?",o:["A rubber coupling","A dielectric union or approved connector","A brass fitting between the two metals","No special fitting is needed"],c:1,e:"If dissimilar material is used, a dielectric union or approved connector must be used."},
+  {s:"Water Supply",q:"Why must all pipe be reamed to its full inside diameter?",o:["To allow solder to flow properly","To prevent turbulence","To allow interior inspection","To ensure correct pressure readings"],c:1,e:"All pipe must be reamed to the full inside diameter to prevent turbulence."},
+
+  // ──────────── 48-55: SANITARY DRAINAGE ────────────
+  {s:"Sanitary Drainage",q:"What is the minimum slope for drain pipes 2½ inches or smaller?",o:["⅛ inch per foot","¼ inch per foot","½ inch per foot","1 inch per foot"],c:1,e:"Minimum ¼ inch per foot fall is required on all 2½ inches or smaller drain pipe."},
+  {s:"Sanitary Drainage",q:"How are hub and spigot joints in cast iron pipe made?",o:["With solvent cement","With oakum or hemp and lead (caulked joint)","With rubber compression rings","With threaded fittings"],c:1,e:"Hub and spigot joints in cast iron are made with oakum or hemp and lead — called a caulked joint."},
+  {s:"Sanitary Drainage",q:"Which type of drain joint is PROHIBITED?",o:["Caulked joints","Mechanical compression joints","Drilled, tapped, or saddle-type joints","Hub and spigot joints"],c:2,e:"Drilled, tapped, or saddle-type joints are prohibited in sanitary drainage systems."},
+  {s:"Sanitary Drainage",q:"What material must cleanout plugs be made of?",o:["Cast iron or steel","Brass or plastic","PVC only","Copper or bronze"],c:1,e:"Cleanout plugs shall be made of brass or plastic."},
+  {s:"Sanitary Drainage",q:"What clearance must be provided for rodding on 6-inch cleanouts and smaller?",o:["12 inches","18 inches","24 inches","36 inches"],c:1,e:"A clearance of no less than 18 inches must be provided for rodding on 6-inch cleanouts and smaller."},
+  {s:"Sanitary Drainage",q:"When changing direction from vertical to horizontal drainage, what fitting must be used?",o:["A 45-degree elbow","A short-turn fitting","A long-turn fitting","A sanitary tee"],c:2,e:"Change of direction from vertical to horizontal must be made by a long-turn fitting."},
+  {s:"Sanitary Drainage",q:"Underground piping must remain uncovered until what occurs?",o:["The permit is issued","It is inspected and approved","The homeowner approves","Final fixtures are installed"],c:1,e:"All underground piping must be left uncovered until inspected and approved."},
+  {s:"Sanitary Drainage",q:"How must cast iron-to-plastic pipe joints be made?",o:["With solvent cement","By caulked or mechanical compression joints","With threaded adapters only","With lead wool only"],c:1,e:"Cast iron to plastic pipe joints shall be made by caulked or mechanical compression joints."},
+
+  // ──────────── 56-65: VENTS ────────────
+  {s:"Vents",q:"What must protect trap seals from back pressure and siphonage?",o:["Check valves","Vents that maintain the same pressure as outside air","Water hammer arrestors","Pressure reducing valves"],c:1,e:"Trap seals shall be protected from back pressure and siphonage by vents maintaining the same pressure as outside air."},
+  {s:"Vents",q:"What must seal vents where they pass through the roof?",o:["Roof tar","Flashing","Caulk only","A rubber boot only"],c:1,e:"Flashing shall be used to seal the vent water tight where it passes through the roof."},
+  {s:"Vents",q:"How far must vents terminate from openable doors and windows?",o:["5 feet horizontally or 1 foot above","10 feet horizontally or 2 feet above","6 feet horizontally or 3 feet above","15 feet horizontally or 4 feet above"],c:1,e:"Vents shall terminate at least 10 feet horizontally or 2 feet above all openable doors and windows."},
+  {s:"Vents",q:"How must vents be graded (sloped)?",o:["Away from the drainage pipe","Back to the drainage pipe they serve","Level — no slope required","Toward the roof termination"],c:1,e:"Vents shall be graded back to the drainage pipe at the fixture they serve."},
+  {s:"Vents",q:"How high must vents rise above the flood level rim before turning horizontal?",o:["3 inches","6 inches","12 inches","18 inches"],c:1,e:"Vents must rise vertically to 6 inches above the flood level rim of the highest fixture served before turning horizontal."},
+  {s:"Vents",q:"Where must vents connect relative to the horizontal drain pipe?",o:["Below the centerline","At the centerline","Above the center line of the horizontal pipe","At any convenient point"],c:2,e:"Vents must be connected above the center line of the horizontal pipe."},
+  {s:"Vents",q:"Which vent type is PROHIBITED by code?",o:["Stack vent","Branch vent","Crown vent","Individual vent"],c:2,e:"Crown vents are prohibited. Vents must not be installed within two pipe diameters of the trap weir."},
+  {s:"Vents",q:"What is a Wet Vent and where is it permitted?",o:["A vent submerged in water — never allowed","A vent that also serves as waste — allowed only on fixtures on the same floor","A vent for wet areas — allowed anywhere","A vent exposed to weather — allowed on exterior walls only"],c:1,e:"Wet Vent is also a waste pipe. It is only allowed on fixtures on the same floor."},
+  {s:"Vents",q:"What is the minimum size for a vent pipe by table?",o:["¾ inch","1 inch","1¼ inches","1½ inches"],c:2,e:"The minimum size vent by table is 1¼ inches."},
+  {s:"Vents",q:"Trap arms must connect with which fitting — NOT a wye or combo?",o:["Long sweep elbow","San tee","90-degree street elbow","Sanitary cross"],c:1,e:"Trap Arms must connect with a san tee — not a wye or combo fitting."},
+
+  // ──────────── 66-71: TRAPS ────────────
+  {s:"Traps",q:"Where must each fixture trap be located?",o:["At the main stack","As close as possible to the fixture outlet","At least 12 inches from the fixture","At the cleanout access point"],c:1,e:"Each fixture must be trapped with a separate trap located as close as possible to the fixture outlet."},
+  {s:"Traps",q:"What is the maximum vertical distance from the fixture outlet to the trap weir?",o:["12 inches","18 inches","24 inches","36 inches"],c:2,e:"The vertical distance cannot be over 24 inches from the outlet of the fixture to the trap weir."},
+  {s:"Traps",q:"Which trap types are PROHIBITED by code?",o:["P-traps","Crown-vented traps, bell traps, drum traps, and S-traps","Running traps and P-traps","Bottle traps and P-traps"],c:1,e:"No crown-vented traps, bell traps, drum traps, or S-traps are permitted."},
+  {s:"Traps",q:"What is the required trap seal depth?",o:["1 to 2 inches","2 to 4 inches","4 to 6 inches","6 to 8 inches"],c:1,e:"Trap seals must be 2 to 4 inches."},
+  {s:"Traps",q:"When is a trap primer required?",o:["On all floor drains","On traps that may evaporate, to keep the seal full","On all shower traps","On any trap more than 18 inches from the fixture"],c:1,e:"Traps that may evaporate need a trap primer to keep the seal full."},
+  {s:"Traps",q:"What must all traps be?",o:["Made of cast iron","Self-scouring","At least 3 inches in diameter","Vented from below"],c:1,e:"Traps must be self-scouring."},
+
+  // ──────────── 72-81: FUEL GAS ────────────
+  {s:"Fuel Gas",q:"What substance must NEVER be used to test gas piping?",o:["Air","Nitrogen","Oxygen","Carbon dioxide"],c:2,e:"Gas piping must be tested with air or inert gas — NEVER oxygen, as it creates an explosion hazard."},
+  {s:"Fuel Gas",q:"How long and at what pressure must gas piping be tested?",o:["5 minutes at 2 psig","10 minutes at 1½ times working pressure, not less than 3 psig","15 minutes at 5 psig","30 minutes at 10 psig"],c:1,e:"Gas piping must be tested for not less than 10 minutes at 1½ times the maximum working pressure, but not less than 3 psig."},
+  {s:"Fuel Gas",q:"How far from each gas appliance must a shutoff valve be located?",o:["3 feet","6 feet","10 feet","Same room, any distance"],c:1,e:"There shall be a shutoff valve no further than 6 feet from each appliance, readily accessible in the same room."},
+  {s:"Fuel Gas",q:"What is 'Fuel Gas' as defined by code?",o:["Natural gas only","Propane only","Natural, liquefied petroleum, or manufactured gas, or a mixture of these","Any flammable gas used for heating"],c:2,e:"Fuel Gas is natural, liquefied petroleum, or manufactured gas, or a mixture of these."},
+  {s:"Fuel Gas",q:"What must all gas piping joints be during a pressure test?",o:["Wrapped in tape","Left exposed for testing","Coated with soapy water before pressurizing","Tightened to maximum torque"],c:1,e:"All joints shall be left exposed for testing."},
+  {s:"Fuel Gas",q:"If a gas system serves more than one building, where must a shutoff be installed?",o:["Only at the meter","Outside at each building","Inside each building near the main appliance","At the property line"],c:1,e:"If the system serves more than one building, a shutoff shall be installed outside at each building."},
+  {s:"Fuel Gas",q:"What is a 'Drip Leg' in a gas system?",o:["A flexible connector on a gas appliance","A low point in the gas system to collect condensate and allow for removal","A vertical pipe section at a riser","A pressure test port"],c:1,e:"A Drip Leg is a low point in the gas system to collect condensate and allow for removal."},
+  {s:"Fuel Gas",q:"What is LP Gas?",o:["Propane or propylene, butanes or butylenes — gas at normal pressure but liquid under moderate pressure","Any gas stored in a propane tank","Natural gas in liquid form","Compressed natural gas for vehicles"],c:0,e:"LP Gas is propane or propylene, butanes or butylenes — gas at normal pressure but liquid under moderate pressure."},
+  {s:"Fuel Gas",q:"What is the support spacing required for ½-inch gas pipe?",o:["4 feet","6 feet","8 feet","10 feet"],c:1,e:"½-inch pipe must be supported every 6 feet."},
+  {s:"Fuel Gas",q:"What is a BTU?",o:["A unit of gas pressure","Heat required to raise 1 pound of water 1°F","Gas flow rate in cubic feet per hour","Minimum ignition temperature of gas"],c:1,e:"A BTU is the heat required to raise 1 pound of water 1°F."},
+
+  // ──────────── 82-92: WATER HEATERS ────────────
+  {s:"Water Heaters",q:"Where must a T&P relief valve be installed on a water heater?",o:["Bottom of the tank","In the top 6 inches of the tank","On the cold water supply line","On the discharge pipe outside the building"],c:1,e:"T&P relief valves must be installed in the top 6 inches of the tank."},
+  {s:"Water Heaters",q:"Which types of water heaters require a T&P relief valve?",o:["Gas water heaters only","Electric water heaters only","All water heaters (gas and electric)","Only heaters over 50 gallons"],c:2,e:"Relief valves are required on ALL water heaters — both gas and electric."},
+  {s:"Water Heaters",q:"What is the maximum temperature setting on a T&P relief valve?",o:["180°F","200°F","210°F","250°F"],c:2,e:"The maximum temperature on the T&P valve is 210°F."},
+  {s:"Water Heaters",q:"Where must T&P discharge piping terminate?",o:["Into a floor drain","To the outside of the building, not a pan","Into an approved receptor","Back into the water heater drain pan"],c:1,e:"T&P discharge piping must fall to the outside of the building — not a pan."},
+  {s:"Water Heaters",q:"How high above grade must T&P relief discharge piping terminate?",o:["3 inches","6 inches","12 inches","18 inches"],c:1,e:"T&P relief discharge piping must terminate 6 inches above grade."},
+  {s:"Water Heaters",q:"How high above the floor must a water heater be if in or open to a garage?",o:["6 inches","12 inches","18 inches","24 inches"],c:2,e:"Water heaters must be 18 inches above the floor if in or open to a garage or store room."},
+  {s:"Water Heaters",q:"In which locations are water heaters PROHIBITED?",o:["Utility rooms and garages","Bedrooms, bathrooms, and clothes closets","Attics and crawl spaces","Basements and mechanical rooms"],c:1,e:"Water heaters cannot be installed in a bedroom, bathroom, or clothes closet."},
+  {s:"Water Heaters",q:"What access is required for a water heater installed in an attic?",o:["12 inches","18 inches","24 inches","36 inches"],c:2,e:"If installed in an attic, the water heater must have 24-inch access."},
+  {s:"Water Heaters",q:"What must the cold water supply to a water heater always include?",o:["A pressure gauge","A shutoff valve (any type)","A check valve","A pressure reducing valve"],c:1,e:"The cold water supply to a water heater must have a shutoff valve (any type)."},
+  {s:"Water Heaters",q:"What is the maximum length for a gas connector to a water heater?",o:["1 foot","2 feet","3 feet","6 feet"],c:2,e:"Gas connectors to water heaters have a maximum length of 3 feet."},
+  {s:"Water Heaters",q:"What combustion air opening positions are required for gas water heaters?",o:["One opening at the top only","12 inches from the top AND 12 inches from the floor","6 inches from top and 6 inches from floor","At floor level only"],c:1,e:"Gas water heaters must have combustion air 12 inches from the top and 12 inches from the floor."},
+
+  // ──────────── 93-101: LICENSE LAW ────────────
+  {s:"License Law",q:"What is the minimum status required to perform plumbing work in Texas?",o:["Any homeowner can do their own work","A registered apprentice under direct supervision of a licensed plumber","A journeyman working independently","Only a licensed master plumber"],c:1,e:"Must at least be a registered apprentice under the on-the-job, direct supervision of a licensed plumber."},
+  {s:"License Law",q:"What penalties can the board assess per violation per day?",o:["$10 to $100","$50 to $1,000","$500 minimum","Revocation only"],c:1,e:"The board may assess penalties of $50 to $1,000 per day per violation, plus administrative penalties up to $5,000 per day."},
+  {s:"License Law",q:"What must every plumbing contract include?",o:["Price breakdown for all labor and materials","Name, address, and phone number of the State Plumbing Board","License number of the journeyman performing work","A copy of the plumbing permit"],c:1,e:"Each contract must have the name, address, and phone number of the state plumbing board."},
+  {s:"License Law",q:"What must appear on all company service vehicles?",o:["The master plumber's photo ID","Company name and master number on both sides","The license expiration date","The plumbing permit number"],c:1,e:"Must have name of company and master number on both sides of all service vehicles."},
+  {s:"License Law",q:"How many hours of continuing education are required to renew a plumbing license?",o:["4 hours","6 hours","8 hours","10 hours"],c:1,e:"All licensees must have 6 hours of continuing education to renew a license."},
+  {s:"License Law",q:"What happens if a plumbing license has been expired for more than 2 years?",o:["Renewed with a late fee","Renewed after 6 hours of CE","Cannot be renewed — must meet new requirements and retest","Automatically reinstated after payment of all fees"],c:2,e:"If the license is expired over 2 years it cannot be renewed — must meet requirements and retest."},
+  {s:"License Law",q:"Which plumbing code(s) must all plumbing meet?",o:["Only the local city code","Only the International Plumbing Code","The Uniform Plumbing Code or the International Plumbing Code","Only the Texas Plumbing Code"],c:2,e:"All plumbing must meet the Uniform Plumbing Code or the International Plumbing Code."},
+  {s:"License Law",q:"What special authorization is required to install medical gas?",o:["A journeyman license","A master plumber license","A special endorsement","A general contractor's license"],c:2,e:"Cannot install medical gas without a special endorsement."},
+  {s:"License Law",q:"What must all plumbing advertising include?",o:["The plumber's photo and license type","License number on all advertising; all advertising must be truthful","The insurance policy number","The bond amount"],c:1,e:"Must have license number on all advertising and all advertising must be truthful."},
+
+  // ──────────── 102-106: TRAP QUESTIONS — EXAM 1 ────────────
+  {s:"⚠️ Trap Question",q:"Pipe joint compound should be applied to BOTH male and female threads — True or False?",o:["True — both threads need compound for a proper seal","False — pipe joint compound is applied to male threads ONLY","True — but only on copper-to-steel connections","False — pipe joint compound should never be used on threaded joints"],c:1,e:"TRAP: Pipe joint compound shall be applied to MALE threads ONLY — never to female threads."},
+  {s:"⚠️ Trap Question",q:"A Crown Vent is simply a vent installed at the top of the trap — is it allowed?",o:["Yes — it is the preferred method for venting floor drains","Yes — it is allowed as long as it is at least 2 pipe diameters from the weir","No — Crown Vents are PROHIBITED; vents must not be within two pipe diameters of the trap weir","No — but only prohibited on soil pipe fixtures"],c:2,e:"TRAP: Crown Vents are PROHIBITED. Vents must NOT be installed within two pipe diameters of the trap weir."},
+  {s:"⚠️ Trap Question",q:"A water heater's T&P relief valve discharge pipe may drain into a floor drain pan to contain spills. True or False?",o:["True — a pan is the safest option to contain hot water","True — as long as the pan drains to the outside","False — T&P discharge must fall to the OUTSIDE of the building, not a pan","False — it must drain into the building sewer directly"],c:2,e:"TRAP: T&P discharge piping must fall to the OUTSIDE of the building — not into a pan."},
+  {s:"⚠️ Trap Question",q:"Since oxygen is just another gas, it can be used to pressure-test gas piping in an emergency. True or False?",o:["True — oxygen is inert enough for short-duration testing","True — only prohibited for systems carrying LP gas","False — oxygen must NEVER be used to test gas piping; it creates an explosion hazard","False — only prohibited for black iron pipe systems"],c:2,e:"TRAP: Oxygen must NEVER be used to test gas piping under ANY circumstances. Use air or inert gas only."},
+  {s:"⚠️ Trap Question",q:"The Building Drain and the Building Sewer are the same pipe — True or False?",o:["True — they refer to the same section of drainage pipe","True — the difference is only in the pipe material used","False — Building Drain is INSIDE the building; Building Sewer begins where the Building Drain ends and connects to the public sewer","False — the Building Sewer is inside the building"],c:2,e:"TRAP: They are different pipes. Building Drain = INSIDE the building; Building Sewer = the pipe from the building drain to the public sewer."},
+
+  // ──────────── 107-111: TRAP QUESTIONS — EXAM 2 ────────────
+  {s:"⚠️ Trap Question",q:"A deeper trap seal (more than 4 inches) provides better protection against sewer gas — True or False?",o:["True — a deeper seal is always more effective","True — as long as the trap is self-scouring","False — a trap seal deeper than 4 inches causes too little water velocity, allowing solids to build up","False — trap seals can never be too deep"],c:2,e:"TRAP: A trap seal deeper than 4 inches causes too little water velocity, leading to solids buildup. Required range is 2 to 4 inches."},
+  {s:"⚠️ Trap Question",q:"Solder with 0.5% lead content is considered 'lead-free' and acceptable for potable water piping in Texas. True or False?",o:["True — 0.5% is below the 1% threshold for lead-free classification","True — only solder over 2% lead is prohibited","False — solder for water supply must be 0.2% lead or less","False — only copper soldering is prohibited in potable water lines"],c:2,e:"TRAP: 0.5% lead is NOT acceptable. Solder must be 0.2 percent lead or less."},
+  {s:"⚠️ Trap Question",q:"A water heater in a garage needs its ignition source 12 inches above the floor — True or False?",o:["True — 12 inches keeps the ignition source above most gas vapors","True — only required for gas water heaters","False — the ENTIRE water heater must be elevated 18 inches above the floor, not just the ignition source","False — no elevation is required in a garage if there is adequate ventilation"],c:2,e:"TRAP: The entire water heater must be 18 INCHES above the floor — not just the ignition source, and not 12 inches."},
+  {s:"⚠️ Trap Question",q:"A water closet installed in an older home is allowed up to 2.0 gallons per flush. True or False?",o:["True — older homes are grandfathered in at 2.0 gpf","True — only new construction is limited to 1.6 gpf","False — water closet tanks are limited to 1.6 gallons per flush regardless of building age","False — the limit is 1.2 gallons per flush"],c:2,e:"TRAP: 1.6 gpf maximum applies to ALL water closets — no grandfathering for older homes."},
+  {s:"⚠️ Trap Question",q:"A shower can be 24 inches inside dimension if it has a glass door instead of a shower curtain. True or False?",o:["True — glass doors allow a smaller footprint","True — only shower curtains require the larger 30-inch dimension","False — showers must be a MINIMUM of 30 inches inside dimension regardless of door type","False — the minimum is actually 32 inches"],c:2,e:"TRAP: Showers must be at least 30 inches inside dimension. The door type is irrelevant."},
+
+  // ──────────── 112-116: TRAP QUESTIONS — EXAM 3 ────────────
+  {s:"⚠️ Trap Question",q:"A water closet must be installed no closer than 18 inches from a side wall — True or False?",o:["True — 18 inches is required for adequate clearance","True — only applies to residential installations","False — the minimum is 15 inches from a side wall (center of bowl)","False — the minimum is 24 inches from a side wall"],c:2,e:"TRAP: The required minimum is 15 INCHES from a side wall — not 18. Also, 30 inches center to center between two water closets."},
+  {s:"⚠️ Trap Question",q:"Vents must rise a minimum of 12 inches above the flood level rim before turning horizontal. True or False?",o:["True — 12 inches prevents waste backup","True — only applies to wet vents","False — vents must rise only 6 inches above the flood level rim before turning horizontal","False — they must rise 18 inches before turning"],c:2,e:"TRAP: Vents must rise only 6 INCHES above the flood level rim of the highest fixture served — not 12."},
+  {s:"⚠️ Trap Question",q:"A gas appliance shutoff valve can be located in an adjacent room if within 6 feet of the appliance. True or False?",o:["True — 6 feet is the only rule that matters","True — as long as the valve is readily accessible","False — the shutoff must be in the SAME ROOM, within 6 feet, and readily accessible","False — the shutoff must be directly on the appliance"],c:2,e:"TRAP: The shutoff must be in the SAME ROOM as the appliance, no further than 6 feet away, AND readily accessible. All three conditions apply."},
+  {s:"⚠️ Trap Question",q:"A water heater installed in an attic requires 18 inches of access — True or False?",o:["True — 18 inches matches the 18-inch rule for garages","True — only on pitched-roof attics","False — attic water heaters require 24 inches of access","False — the required access is 36 inches"],c:2,e:"TRAP: Attic water heaters require 24 INCHES of access — not 18. Don't confuse this with the 18-inch floor elevation for garage-installed heaters."},
+  {s:"⚠️ Trap Question",q:"A trap arm can be connected to the drain with a wye fitting if it has the correct slope. True or False?",o:["True — wye fittings provide better flow than san tees","True — as long as the slope is at least ¼ inch per foot","False — trap arms must connect with a SAN TEE — not a wye or combo","False — trap arms can only connect with a long-turn elbow"],c:2,e:"TRAP: Trap arms must connect with a SAN TEE — never a wye or combo fitting, regardless of slope."},
+
+  // ════════════════════════════════════════════════════════════════
+  // 117-211: IRC 2018 PRACTICE QUESTIONS (Used by Exam 4)
+  // Source: Practice questions provided by user, based on the
+  // 2018 International Residential Code and Texas Plumbing License Law.
+  // ════════════════════════════════════════════════════════════════
+
+  // ───── Round 1 (5 questions) — indices 117-121 ─────
+  {s:"IRC – Drainage",q:"According to the 2018 IRC, what is the minimum required slope (fall) for a horizontal drainage pipe that is 2 inches in diameter or less?",o:["1/8 inch per foot","1/4 inch per foot","1/2 inch per foot","1 inch per foot"],c:1,e:"2018 IRC §P3005.3 — The minimum slope is 1/4 inch per foot for pipes 2 inches and smaller, to ensure solids stay in suspension and the pipe scours properly."},
+  {s:"IRC – Water Heaters",q:"A T&P relief valve discharge pipe must terminate atmospherically not more than ____ inches and not less than ____ inches above the floor or waste receptor.",o:["12 max / 2 min","6 max / 2 min","6 max / 'twice the diameter of the pipe' min","18 max / 6 min"],c:2,e:"2018 IRC §P2804.6.1 — 6 inches maximum, with a minimum air gap of twice the pipe diameter. The goal is to prevent both a trip hazard and back-siphonage."},
+  {s:"IRC – Fuel Gas",q:"Which of the following is NOT an approved material for testing a fuel gas piping system for leaks?",o:["Nitrogen","Carbon Dioxide","Compressed Air","Oxygen"],c:3,e:"2018 IRC §G2417.2 — Never use oxygen! It can react with oils in the pipe and cause a violent explosion. Use air, nitrogen, or CO2."},
+  {s:"IRC – Water Heaters",q:"When installing a water heater in a location where water leakage could cause damage, a pan must be installed. What is the minimum required depth of this pan?",o:["1 inch","1.5 inches","2 inches","3 inches"],c:1,e:"2018 IRC §P2801.6.1 — The pan must be at least 1.5 inches deep, with a drain of at least 3/4 inch diameter."},
+  {s:"IRC – Vents",q:"All vent and branch vent pipes shall be so graded and connected as to drip back by gravity to the ______ pipe they serve.",o:["Water","Drainage","Gas","Relief"],c:1,e:"2018 IRC §P3104.2 — Vents are for air, but moisture from condensation or splashing needs a way to get back to the drainage pipe and into the sewer."},
+
+  // ───── Round 2 (20 questions) — indices 122-141 ─────
+  {s:"License Law (TX)",q:"A person may not perform plumbing on a one-or-two family dwelling unless they are at least:",o:["A registered Plumber's Apprentice","A licensed Tradesman Plumber-Limited","A licensed Journeyman Plumber","A high school graduate"],c:0,e:"PLL §1301.351 — You must be at least a registered Plumber's Apprentice to even touch the tools."},
+  {s:"IRC – Water Supply",q:"What is the minimum size of a residential water service pipe?",o:["1/2 inch","3/4 inch","1 inch","1-1/4 inch"],c:1,e:"2018 IRC §P2903.7 — Minimum water service pipe size is 3/4 inch."},
+  {s:"IRC – Definitions",q:"In a drainage system, the 'lowest part of the horizontal piping that receives the discharge of all other drainage piping inside the building' is the:",o:["Building Sewer","Stack Vent","Building Drain","Branch Interval"],c:2,e:"2018 IRC Chapter 24 — The Building Drain is inside the building; the Building Sewer starts where it exits."},
+  {s:"IRC – Fixtures",q:"Joints between a water closet (toilet) and the floor flange shall be made gas-tight and water-tight by use of:",o:["Plumber's putty only","Silicone caulk only","A wax ring or elastomeric seal","Expansion cement"],c:2,e:"2018 IRC §P3003.9.2 — A wax ring or elastomeric seal is required between water closet and floor flange."},
+  {s:"IRC – Drainage",q:"Vertical drainage piping 3 inches or larger in diameter shall be supported at intervals not to exceed ______ feet.",o:["10","15","5","Each floor level"],c:3,e:"2018 IRC Table P2605.1 — Vertical drainage piping 3 inches or larger must be supported at every floor level."},
+  {s:"IRC – Traps",q:"Which of the following traps is strictly prohibited for use in a residential plumbing system?",o:["P-trap","Drum trap","S-trap","Both Drum and S-traps"],c:3,e:"2018 IRC §P3201.5 — Both drum traps and S-traps are prohibited."},
+  {s:"IRC – Backflow",q:"The minimum air gap for a fixture with an effective opening of 1/2 inch that is NOT affected by a sidewall is:",o:["1 inch","1.5 inches","2 inches","3 inches"],c:0,e:"2018 IRC Table P2902.3.1 — Minimum air gap is 1 inch for a 1/2-inch opening not affected by a sidewall."},
+  {s:"IRC – Testing",q:"When testing a DWV system with water, the water must be kept in the system for at least ______ minutes before inspection starts.",o:["5","10","15","30"],c:2,e:"2018 IRC §P2503.5.1 — The DWV water test must be held for at least 15 minutes."},
+  {s:"IRC – Venting",q:"What is the maximum distance a fixture trap can be from a vent for a 2-inch pipe?",o:["5 feet","6 feet","8 feet","10 feet"],c:2,e:"2018 IRC Table P3105.1 — A 2-inch trap arm has a maximum length of 8 feet."},
+  {s:"Definitions",q:"A 'Cross Connection' is best defined as:",o:["A connection between two different vent stacks","A connection between a potable water supply and a non-potable source","A fitting that allows two pipes to cross each other","A cleanout that serves two different lines"],c:1,e:"IRC Chapter 24 — A Cross Connection is between a potable water supply and a non-potable source."},
+  {s:"IRC – Fuel Gas",q:"Fuel gas piping must be tested at a pressure of at least ______ times the proposed maximum working pressure, but not less than ______ psig.",o:["1.5 / 3","2 / 10","3 / 15","1.5 / 10"],c:0,e:"2018 IRC §G2417.4.1 — Test at 1.5x working pressure, but not less than 3 psig."},
+  {s:"IRC – Water Heaters",q:"When a water heater is installed in a garage, the ignition source must be at least ______ inches above the floor.",o:["6","12","18","24"],c:2,e:"2018 IRC §P2801.7 — Ignition source must be at least 18 inches above the floor in a garage."},
+  {s:"IRC – Materials",q:"Which material is NOT approved for use as a water distribution pipe inside a house?",o:["CPVC","PEX","PVC (Schedule 40)","Copper (Type L)"],c:2,e:"2018 IRC Table P2906.5 — PVC is for cold water service or DWV, not hot/cold distribution inside the home."},
+  {s:"IRC – Cleanouts",q:"A cleanout is required at the junction of the building drain and the building sewer, or no more than ______ feet outside the building wall.",o:["2","5","10","15"],c:2,e:"2018 IRC §P3005.2.7 — Cleanout required at junction or no more than 10 feet outside the building wall."},
+  {s:"IRC – Vents",q:"What is the minimum size of a vent for a residential kitchen sink (1-1/2 inch trap)?",o:["1-1/4 inch","1-1/2 inch","2 inch","3 inch"],c:0,e:"2018 IRC Table P3107.3 — Minimum vent size for a 1-1/2 inch trap is 1-1/4 inch."},
+  {s:"IRC – Vents",q:"Horizontal vent pipes must be installed at least ______ inches above the flood level rim of the highest fixture they serve before turning horizontal.",o:["2","4","6","12"],c:2,e:"2018 IRC §P3104.5 — Vents must rise 6 inches above the flood level rim before turning horizontal."},
+  {s:"License Law (TX)",q:"A plumbing permit is generally required for:",o:["Clearing a simple stoppage","Replacing a washer in a faucet","Replacing a water heater","Re-caulking a bathtub"],c:2,e:"Replacing a water heater requires a permit due to gas/electrical and water connections involved."},
+  {s:"IRC – Materials",q:"Solvent cement joints for PVC pipe require the use of a primer that complies with:",o:["ASTM D 2564","ASTM F 656","ASTM D 1785","NSF 61"],c:1,e:"2018 IRC §P3003.9.2 — Primer must comply with ASTM F 656."},
+  {s:"IRC – Traps",q:"What is the maximum length of a fixture tailpiece (vertical distance from fixture outlet to trap weir)?",o:["12 inches","18 inches","24 inches","30 inches"],c:2,e:"2018 IRC §P3201.6 — Maximum tailpiece length is 24 inches from fixture outlet to trap weir."},
+  {s:"Definitions",q:"A 'Wet Vent' is a vent that also serves as a:",o:["Gas line","Drain","Cleanout","Water supply"],c:1,e:"2018 IRC Chapter 24 — A Wet Vent is a vent that also serves as a drain for other fixtures."},
+
+  // ───── Round 3 (20 questions) — indices 142-161 ─────
+  {s:"IRC – Drainage",q:"What is the minimum required size for a residential building sewer?",o:["2 inches","3 inches","4 inches","6 inches"],c:1,e:"2018 IRC Table P3005.4.2 — Minimum residential building sewer is 3 inches."},
+  {s:"IRC – Water Heaters",q:"A water heater T&P relief valve must be set to open at a pressure not exceeding ______ psi.",o:["100","125","150","160"],c:2,e:"2018 IRC §P2804.3 — Maximum T&P relief valve setting is 150 psi."},
+  {s:"License Law (TX)",q:"In Texas, a licensed Tradesman Plumber-Limited is permitted to work on:",o:["Any commercial building up to 3 stories","One-and-two family dwellings only","Hospitals and Medical Gas systems","Public sewer mains only"],c:1,e:"PLL §1301.002(10) — Tradesman Plumber-Limited license is restricted to one-and-two family dwellings."},
+  {s:"IRC – Installation",q:"When burying PEX piping underground, what is the minimum required depth for the water service pipe?",o:["6 inches","12 inches","18 inches","Below the frost line, or at least 12 inches"],c:3,e:"2018 IRC §P2603.5 — Water service must be below the frost line, or at least 12 inches deep."},
+  {s:"IRC – Sizing",q:"What is the maximum number of drainage fixture units (DFUs) allowed on a 2-inch horizontal building drain?",o:["6","11","21","26"],c:2,e:"2018 IRC Table P3005.4.2 — Maximum 21 DFUs on a 2-inch horizontal building drain at 1/4 inch slope."},
+  {s:"IRC – Vents",q:"Which type of venting relies on the 'oversizing' of the drain pipe to allow air to flow above the waste?",o:["Individual vent","Combination waste and vent","Circuit vent","Island fixture vent"],c:1,e:"2018 IRC §P3111 — A Combination Waste and Vent system relies on oversized drain pipe for venting."},
+  {s:"IRC – Fuel Gas",q:"A fuel gas shutoff valve must be located in the same room as the appliance and within ______ feet of the appliance.",o:["3","6","10","50"],c:1,e:"2018 IRC §G2420.5.1 — Shutoff must be within 6 feet of the appliance and in the same room."},
+  {s:"IRC – Materials",q:"When soldering a copper joint for a potable water system, the solder must contain no more than ______ percent lead.",o:["0.2%","2.0%","8.0%","10.0%"],c:0,e:"2018 IRC §P2906.13 / Federal Safe Drinking Water Act — Maximum lead content in solder is 0.2%."},
+  {s:"IRC – Cleanouts",q:"What is the minimum clearance required in front of a 3-inch or 4-inch cleanout?",o:["12 inches","18 inches","24 inches","36 inches"],c:1,e:"2018 IRC §P3005.2.10 — Minimum clearance of 18 inches in front of a 3-inch or 4-inch cleanout."},
+  {s:"IRC – Vents",q:"A vent stack is required for every building that has a ______ stack.",o:["Waste","Soil","Drainage","All of the above"],c:3,e:"2018 IRC §P3103.1 — Every building with a waste, soil, or drainage stack requires a vent stack."},
+  {s:"IRC – Fixtures",q:"What is the minimum pipe size for a floor drain?",o:["1-1/2 inches","2 inches","3 inches","4 inches"],c:1,e:"2018 IRC §P3201.7 — Minimum floor drain pipe size is 2 inches."},
+  {s:"IRC – Vents",q:"When using a mechanical 'Studor' vent (Air Admittance Valve), it must be installed at least ______ inches above the horizontal branch being vented.",o:["2","4","6","12"],c:1,e:"2018 IRC §P3114.3 — AAVs must be installed at least 4 inches above the horizontal branch."},
+  {s:"IRC – Fixtures",q:"A bathtub must be provided with a waste outlet and overflow that is at least ______ inches in diameter.",o:["1-1/4","1-1/2","2","3"],c:1,e:"2018 IRC §P2713.1 — Bathtub waste outlet and overflow must be at least 1-1/2 inches."},
+  {s:"IRC – Fixtures",q:"What is the minimum width for a water closet (toilet) compartment or space?",o:["15 inches from center to wall","30 inches total width","21 inches in front of the toilet","Both 15-inch and 30-inch options apply"],c:3,e:"2018 IRC §P2705.1 — 15 inches from center of bowl to wall AND 30 inches total width."},
+  {s:"IRC – Fuel Gas",q:"If a gas piping system is made of corrugated stainless steel tubing (CSST), it must be bonded to the ______ system.",o:["Sanitary drainage","Electrical service grounding electrode","Water distribution","Venting"],c:1,e:"2018 IRC §G2411.2 — CSST must be bonded to the electrical service grounding electrode (lightning safety)."},
+  {s:"IRC – Vents",q:"A 'Circuit Vent' can serve a maximum of ______ fixtures.",o:["4","8","10","12"],c:1,e:"2018 IRC §P3110.1 — A circuit vent serves a maximum of 8 fixtures."},
+  {s:"IRC – Fixtures",q:"What is the minimum size of a discharge pipe for a sump pump?",o:["1 inch","1-1/4 inches","1-1/2 inches","2 inches"],c:1,e:"2018 IRC §P3303.3.2 — Minimum sump pump discharge pipe is 1-1/4 inches."},
+  {s:"IRC – Drainage",q:"Which of the following is an example of an 'indirect waste' connection?",o:["A kitchen sink drain","A clothes washer discharge into a standpipe","A dishwasher drain into a garbage disposal","A water heater T&P line terminating over a floor drain"],c:3,e:"2018 IRC §P2804.6.1 — A T&P discharge terminating over a floor drain is an example of indirect waste."},
+  {s:"IRC – Traps",q:"Every trap must have a water seal of at least ______ inches and not more than ______ inches.",o:["1 / 3","2 / 4","3 / 6","2 / 5"],c:1,e:"2018 IRC §P3201.2 — Trap water seal must be between 2 and 4 inches."},
+  {s:"License Law (TX)",q:"According to Board Rules, if you change your home address, you must notify the TSBPE in writing within ______ days.",o:["10","30","60","90"],c:1,e:"TSBPE Board Rule §365.8 — Address changes must be reported within 30 days."},
+
+  // ───── Round 4 (20 questions) — indices 162-181 ─────
+  {s:"Definitions",q:"A 'stack' is defined as any vertical line of ______ piping.",o:["Soil or waste","Vent","Soil/waste OR vent","Only piping 3 inches or larger"],c:2,e:"2018 IRC Chapter 24 — A 'stack' is any vertical line of soil/waste OR vent piping."},
+  {s:"IRC – Traps",q:"What is the maximum horizontal distance allowed for a 1-1/2 inch fixture tailpiece?",o:["12 inches","18 inches","24 inches","30 inches"],c:2,e:"2018 IRC §P3201.6 — Maximum tailpiece length is 24 inches."},
+  {s:"IRC – Installation",q:"When installing a trench for plumbing, the bottom of the trench must be:",o:["Sloped at 1/2 inch per foot","Loose dirt and gravel","Stable and of relatively uniform surfaces","Poured concrete"],c:2,e:"2018 IRC §P2604.1 — Trench bottom must be stable and of relatively uniform surfaces."},
+  {s:"IRC – Water Heaters",q:"A water heater pan drain shall not be smaller than ______ inch(es) or the size of the T&P relief valve discharge pipe.",o:["1/2","3/4","1","1-1/4"],c:1,e:"2018 IRC §P2801.6.1 — Pan drain must be at least 3/4 inch."},
+  {s:"IRC – Vents",q:"What is the minimum size of a vent that passes through the roof (VSTR) to prevent frost closure?",o:["1-1/2 inches","2 inches","3 inches","4 inches"],c:2,e:"2018 IRC §P3103.2 — Minimum 3 inches through the roof to prevent frost closure (hoarfrost)."},
+  {s:"IRC – Materials",q:"Which of the following is an example of a 'prohibited joint' in a plumbing system?",o:["Solvent cemented PVC","Cement or concrete joints","Solder joints on copper","Mechanical joints on cast iron"],c:1,e:"2018 IRC §P3003.2 — Cement or concrete joints are prohibited in plumbing systems."},
+  {s:"Definitions",q:"A 'Critical Level' (C-L) marking on a backflow prevention device refers to the point where ______ could occur if the device is submerged.",o:["Thermal expansion","Backflow","A leak","Pressure loss"],c:1,e:"2018 IRC Chapter 24 — Critical Level marks the point where backflow could occur if submerged."},
+  {s:"IRC – Cleanouts",q:"The maximum distance between a 3-inch horizontal drainage pipe and its cleanout is ______ feet.",o:["50","100","150","200"],c:1,e:"2018 IRC §P3005.2.2 — Maximum 100 feet between cleanouts on horizontal drainage."},
+  {s:"IRC – Vents",q:"When a vent terminal is located directly beneath a door or window, it must be at least ______ feet below that opening.",o:["1","2","3","4"],c:3,e:"2018 IRC §P3103.5 — Vent terminal must be at least 4 feet below a door or window above it."},
+  {s:"IRC – Drainage",q:"What is the minimum size of a pipe required to serve as a 'Building Drain' for a home with three water closets?",o:["2 inches","2-1/2 inches","3 inches","4 inches"],c:2,e:"2018 IRC Table P3005.4.2 — A home with water closets requires at least a 3-inch building drain."},
+  {s:"IRC – Cleanouts",q:"Every building sewer shall be provided with a cleanout at its connection to the building drain and every ______ feet of straight run.",o:["50","75","100","125"],c:2,e:"2018 IRC §P3005.2.2 — Cleanouts every 100 feet on building sewers."},
+  {s:"IRC – Fixtures",q:"When installing a clothes washer standpipe, the standpipe must be at least ______ inches but not more than ______ inches above the trap weir.",o:["12 / 24","18 / 42","6 / 18","24 / 48"],c:1,e:"2018 IRC §P2706.1.2 — Clothes washer standpipe must be 18 to 42 inches above the trap weir."},
+  {s:"IRC – Sizing",q:"What is the minimum required drainage fixture unit (DFU) value for a single bathroom group (water closet + lavatory + bathtub/shower)?",o:["3","5","6","8"],c:2,e:"2018 IRC Table P3004.1 — A complete bathroom group counts as 6 DFUs."},
+  {s:"IRC – Installation",q:"Horizontal drainage piping shall be supported at intervals not to exceed ______ feet for PVC pipe.",o:["4","6","8","10"],c:0,e:"2018 IRC Table P2605.1 — Horizontal PVC drainage piping supported every 4 feet."},
+  {s:"IRC – Fixtures",q:"A water closet (toilet) must be installed with at least ______ inches of clearance in front of the bowl to any wall or door.",o:["15","18","21","24"],c:2,e:"2018 IRC §P2705.1 — Water closet must have at least 21 inches of clearance in front of the bowl."},
+  {s:"IRC – Water Heaters",q:"Which of the following is required on a water heater to protect against 'thermal expansion' in a closed-loop system?",o:["A larger T&P valve","An expansion tank","A check valve","A second shutoff valve"],c:1,e:"2018 IRC §P2903.4 — An expansion tank protects against thermal expansion in closed systems."},
+  {s:"IRC – Traps",q:"What is the maximum number of fixtures that can be served by a single 2-inch floor drain trap?",o:["1","2","3","None; floor drains only serve themselves"],c:0,e:"A trap serves only one fixture."},
+  {s:"Definitions",q:"A 'Branch Interval' is a distance along a soil or waste stack that is at least ______ feet in height.",o:["4","8","10","12"],c:1,e:"2018 IRC Chapter 24 — A Branch Interval is at least 8 feet in height along a stack."},
+  {s:"IRC – Fuel Gas",q:"When testing fuel gas piping, the pressure gauge must have a range such that the highest end of the scale is not greater than ______ times the test pressure.",o:["2","5","10","1.5"],c:1,e:"2018 IRC §G2417.4 — Pressure gauge scale max must not exceed 5 times the test pressure."},
+  {s:"Definitions",q:"A 'Dry Vent' is a vent that:",o:["Is only for gas appliances","Never carries any liquid or waste","Is not connected to a stack","Only vents a single fixture"],c:1,e:"2018 IRC Chapter 24 — A Dry Vent never carries any liquid or waste."},
+
+  // ───── Round 5 (20 questions) — indices 182-201 ─────
+  {s:"IRC – Sizing",q:"What is the maximum number of water closets allowed to discharge into a 3-inch horizontal branch?",o:["1","2","3","4"],c:2,e:"2018 IRC Table P3005.4.2 — Maximum 3 water closets on a 3-inch horizontal branch."},
+  {s:"IRC – Water Heaters",q:"A water heater installed in a garage must be elevated so the ignition source is at least ______ inches above the garage floor.",o:["6","12","18","24"],c:2,e:"2018 IRC §P2801.7 — Ignition source must be at least 18 inches above the garage floor."},
+  {s:"IRC – Drainage",q:"What is the minimum slope (grade) required for horizontal drainage piping that is 2 inches or smaller in diameter?",o:["1/8 inch per foot","1/4 inch per foot","1/2 inch per foot","1 inch per foot"],c:1,e:"2018 IRC Table P3005.1 — Minimum 1/4 inch per foot slope for 2-inch and smaller horizontal drainage."},
+  {s:"IRC – Testing",q:"When air testing a DWV system, the system must hold ______ psi of air pressure for at least 15 minutes.",o:["5","10","60","100"],c:0,e:"2018 IRC §P2503.4 — Air test requires 5 psi held for at least 15 minutes."},
+  {s:"IRC – Traps",q:"A fixture trap must have a minimum liquid seal of ______ inches.",o:["1","2","3","4"],c:1,e:"2018 IRC §P3201.2 — Minimum trap liquid seal is 2 inches."},
+  {s:"IRC – Traps",q:"Which of these is the only type of 'S-trap' setup allowed by modern plumbing codes?",o:["A standard S-trap","A bell trap","None; S-traps are prohibited","An S-trap with a crown vent"],c:2,e:"2018 IRC §P3201.5 — S-traps are PROHIBITED in modern codes."},
+  {s:"IRC – Water Supply",q:"In a water distribution system, the maximum water pressure at a fixture must be limited to ______ psi.",o:["60","80","100","125"],c:1,e:"2018 IRC §P2903.3.1 — Maximum fixture water pressure is 80 psi."},
+  {s:"IRC – Water Supply",q:"What is the minimum size of a water service pipe from the meter to a typical single-family home?",o:["1/2 inch","3/4 inch","1 inch","1-1/4 inch"],c:1,e:"2018 IRC §P2903.7 — Minimum water service pipe is 3/4 inch."},
+  {s:"IRC – Fixtures",q:"When installing a kitchen sink with a garbage disposal, the disposal must discharge into a trap that is at least ______ inches in diameter.",o:["1-1/4","1-1/2","2","3"],c:1,e:"2018 IRC §P2719.1 — Disposal trap must be at least 1-1/2 inches."},
+  {s:"IRC – Water Supply",q:"'Purple pipe' or purple markings are used to identify pipes carrying:",o:["Natural gas","Non-potable (reclaimed) water","High-pressure steam","Medical oxygen"],c:1,e:"2018 IRC §P2901.2 — Purple identifies non-potable (reclaimed) water."},
+  {s:"IRC – Vents",q:"A horizontal vent pipe must be graded (sloped) to:",o:["Drain back to the drainage pipe it serves","Slope away from the building","Stay perfectly level","Carry waste during heavy flow"],c:0,e:"2018 IRC §P3104.2 — Vents must drain back to the drainage pipe they serve by gravity."},
+  {s:"IRC – Venting",q:"What is the maximum distance a 2-inch floor drain trap can be from its vent?",o:["5 feet","8 feet","10 feet","12 feet"],c:1,e:"2018 IRC Table P3105.1 — 2-inch trap arm maximum length is 8 feet."},
+  {s:"IRC – Fixtures",q:"A bathtub or shower valve must be of the ______ type to prevent scalding.",o:["Compression","Pressure-balance or thermostatic-mixing","Quarter-turn ball valve","Gate valve"],c:1,e:"2018 IRC §P2708.4 — Bathtub/shower valves must be pressure-balance or thermostatic-mixing to prevent scalding."},
+  {s:"IRC – Fuel Gas",q:"When testing a gas line with air, the test pressure must be at least ______ psi.",o:["3","15","30","60"],c:0,e:"2018 IRC §G2417.4.1 — Minimum test pressure is 3 psi (local ordinances may require more)."},
+  {s:"IRC – Vents",q:"What is the minimum required size for a vent stack serving a 4-inch soil stack?",o:["1-1/2 inches","2 inches","3 inches","4 inches"],c:1,e:"2018 IRC §P3113.1 — Vent stack must be half the diameter of the stack (2 inches for a 4-inch stack)."},
+  {s:"IRC – Traps",q:"All 'P-traps' must be ______ to allow for maintenance or inspection.",o:["Self-cleaning","Made of plastic","Transparent","Vented"],c:0,e:"2018 IRC §P3201.2 — Traps must be self-cleaning/self-scouring."},
+  {s:"IRC – Fixtures",q:"If a dishwasher is installed without a built-in air gap, the drain hose must be:",o:["Connected directly to the floor drain","Fastened to the underside of the counter (High Loop)","At least 1 inch in diameter","Made of copper"],c:1,e:"2018 IRC §P2717.2 — Without an air gap, use the High Loop method (fastened under the counter)."},
+  {s:"Definitions",q:"A 'Wet Vent' is a vent that also serves as a:",o:["Gas vent","Drain for other fixtures","Rainwater conductor","Cleanout"],c:1,e:"2018 IRC Chapter 24 — A Wet Vent also drains other fixtures."},
+  {s:"IRC – Installation",q:"What is the minimum clearance required between a water service pipe and a sewer pipe in the same trench?",o:["6 inches of compacted earth","12 inches of compacted earth","5 feet of undisturbed earth","No clearance is required if both are plastic"],c:1,e:"2018 IRC §P2903.2.1 — 12 inches of compacted earth between water service and sewer in the same trench."},
+  {s:"License Law (TX)",q:"A person who is not licensed or registered with the TSBPE may only perform plumbing work if:",o:["They are working on their own home","They are supervised by a Master Plumber via phone","They are working in a city under 5,000 people","None of the above; you must be licensed or registered to do plumbing in Texas"],c:0,e:"PLL §1301.051 — Homeowner's Exemption: you can work on your own primary residence yourself."},
+
+  // ───── Round 7 / Bonus (10 questions) — indices 202-211 ─────
+  {s:"License Law (TX)",q:"A Responsible Master Plumber (RMP) must provide the Board with a Certificate of Insurance (COI) for at least ______ coverage.",o:["$100,000","$300,000","$500,000","$1,000,000"],c:1,e:"PLL §1301.552 — RMP must maintain $300,000 insurance coverage on file with TSBPE."},
+  {s:"IRC – Drainage",q:"What is the minimum diameter for a building sewer in Texas?",o:["2 inches","3 inches","4 inches","6 inches"],c:1,e:"2018 IRC Table P3005.4.2 — Code minimum is 3 inches for single-family dwellings (many local cities require 4 inches)."},
+  {s:"License Law (TX)",q:"If a plumbing company's RMP leaves or loses their license, how long does the company have to secure a new RMP before they must stop advertising and contracting?",o:["10 days","30 days","90 days","There is no grace period; it must be immediate"],c:3,e:"PLL §1301.351(a-1) — No grace period. The company cannot contract for plumbing work without an RMP."},
+  {s:"IRC – Water Heaters",q:"When a water heater is located in an attic, the passageway to the unit must be at least ______ inches wide and have a solid floor.",o:["22","24","30","36"],c:1,e:"2018 IRC §P2801.4 — Attic passageway must be at least 24 inches wide with a solid floor."},
+  {s:"IRC – Backflow",q:"A 'Backwater Valve' is required on a fixture if the flood level rim of that fixture is lower than the:",o:["Finished floor","Curb height","Next upstream manhole cover","Roof line"],c:2,e:"2018 IRC §P3008.1 — Backwater valve required when flood level rim is below the next upstream manhole cover."},
+  {s:"License Law (TX)",q:"Which license type is required to work on a medical gas system in a hospital?",o:["Master Plumber","Journeyman Plumber","Any license holder with a Medical Gas Piping Installation Endorsement","A Plumber's Apprentice with 1 year of experience"],c:2,e:"TSBPE Board Rule §363.1 — Requires a Medical Gas Piping Installation Endorsement on top of any license."},
+  {s:"License Law (TX)",q:"Continuing Professional Education (CPE) for license renewal must be completed every:",o:["6 months","1 year","2 years","3 years"],c:1,e:"TSBPE Board Rule §365.14 — CPE must be completed every year for license renewal."},
+  {s:"IRC – Cleanouts",q:"What is the maximum distance between cleanouts on a 4-inch horizontal drainage line?",o:["50 feet","75 feet","100 feet","150 feet"],c:2,e:"2018 IRC §P3005.2.2 — Maximum 100 feet between cleanouts on horizontal drainage."},
+  {s:"Definitions",q:"A 'Vacuum Breaker' is used to prevent what condition?",o:["High pressure","Back-siphonage","Water hammer","Air pockets"],c:1,e:"2018 IRC Chapter 24 — Vacuum breakers prevent back-siphonage."},
+  {s:"IRC – Fire Sprinklers",q:"In a 'Multi-purpose Residential Fire Sprinkler System,' the piping is combined with which other system?",o:["The gas system","The DWV system","The cold water distribution system","The HVAC condensate line"],c:2,e:"2018 IRC §P2904.1 — Multipurpose residential fire sprinkler systems are combined with the cold water distribution system."},
+];
+
+// ──────────────────────────────────────────────────────────────
+// EXAMS 1-3 — Topic distribution (total = 80 regular Qs per exam)
+// Each exam adds 5 unique trap Qs = 85 questions total
+// ──────────────────────────────────────────────────────────────
+const TOPIC_DISTRIBUTION = [
+  {range: [0,  19], count: 16},  // Definitions (20 available)
+  {range: [20, 29], count: 9},   // General Regulations (10 available)
+  {range: [30, 36], count: 6},   // Fixtures (7 available)
+  {range: [37, 47], count: 9},   // Water Supply (11 available)
+  {range: [48, 55], count: 7},   // Sanitary Drainage (8 available)
+  {range: [56, 65], count: 8},   // Vents (10 available)
+  {range: [66, 71], count: 6},   // Traps (6 available — all used)
+  {range: [72, 81], count: 7},   // Fuel Gas (10 available)
+  {range: [82, 92], count: 6},   // Water Heaters (11 available)
+  {range: [93,101], count: 6},   // License Law (9 available)
+];
+
+// Trap question index sets per exam
+const TRAP_SETS = {
+  1: [102, 103, 104, 105, 106],
+  2: [107, 108, 109, 110, 111],
+  3: [112, 113, 114, 115, 116],
+};
+
+// ──────────────────────────────────────────────────────────────
+// EXAM 4 — IRC 2018 Practice Questions
+// 95 questions from "Preguntas para practicar examen" (117-211)
+// + 15 trap questions (102-116) = 110 questions total
+// ──────────────────────────────────────────────────────────────
+const EXAM_4_REGULAR_INDICES = (() => {
+  const arr = [];
+  for (let i = 117; i <= 211; i++) arr.push(i);
+  return arr;
+})();
+const EXAM_4_TRAP_INDICES = (() => {
+  const arr = [];
+  for (let i = 102; i <= 116; i++) arr.push(i);
+  return arr;
 })();
