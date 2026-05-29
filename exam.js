@@ -166,16 +166,37 @@
   }
 
   /**
-   * Build Exam 4 — uses ALL questions from the IRC practice document
-   * (indices 117-211) plus ALL 15 trap questions (102-116).
-   * Total: 110 questions, scored out of 100 points.
+   * Build Exam 4 — IRC 2018 Practice Set (85 unique questions).
+   *
+   * Uses the 85 deduplicated IRC questions from EXAM_4_REGULAR_INDICES.
+   * Does NOT include trap questions (those are only in Exams 1-3).
+   *
+   * Self-contained: rebuilds indices internally if the global is missing,
+   * applying the same exclusion list to ensure 85 questions either way.
    */
   function buildExam4(seed) {
-    const regular = seededShuffle(EXAM_4_REGULAR_INDICES, seed);
-    const traps   = seededShuffle(EXAM_4_TRAP_INDICES, seed + 99);
-    // Intersperse traps throughout the regular questions
-    const combined = seededShuffle([...regular, ...traps], seed * 7);
-    return shuffleQuestionOptions(combined, seed);
+    // Hard-coded exclusion list mirrors questions.js — ensures 85 questions
+    // even if questions.js wasn't updated alongside this file.
+    const EXCLUDED = new Set([163, 174, 183, 184, 186, 187, 189, 193, 199, 203]);
+
+    // Prefer the global if it exists; otherwise rebuild from scratch
+    let regularIndices;
+    if (typeof EXAM_4_REGULAR_INDICES !== 'undefined' && EXAM_4_REGULAR_INDICES.length > 0) {
+      regularIndices = EXAM_4_REGULAR_INDICES.filter(i => QUESTION_BANK[i]);
+    } else {
+      regularIndices = [];
+      for (let i = 117; i <= 211; i++) {
+        if (QUESTION_BANK[i] && !EXCLUDED.has(i)) regularIndices.push(i);
+      }
+    }
+
+    if (regularIndices.length === 0) {
+      console.error('Exam 4 ERROR: No IRC practice questions found in bank. Check that questions.js is updated.');
+      return [];
+    }
+
+    const shuffled = seededShuffle(regularIndices, seed * 7);
+    return shuffleQuestionOptions(shuffled, seed);
   }
 
   /**
@@ -184,10 +205,10 @@
   function getExams() {
     if (examsCache) return examsCache;
     examsCache = [
-      buildExam(1001, TRAP_SETS[1]),  // Exam 1 — 85 Q
-      buildExam(2002, TRAP_SETS[2]),  // Exam 2 — 85 Q
-      buildExam(3003, TRAP_SETS[3]),  // Exam 3 — 85 Q
-      buildExam4(4004),               // Exam 4 — 110 Q (IRC practice + all traps)
+      buildExam(1001, TRAP_SETS[1]),  // Exam 1 — 85 Q (80 regular + 5 traps)
+      buildExam(2002, TRAP_SETS[2]),  // Exam 2 — 85 Q (80 regular + 5 traps)
+      buildExam(3003, TRAP_SETS[3]),  // Exam 3 — 85 Q (80 regular + 5 traps)
+      buildExam4(4004),               // Exam 4 — 85 Q (IRC practice, no traps)
     ];
     return examsCache;
   }
@@ -211,7 +232,16 @@
   function startExam() {
     if (!selectedExam) return;
 
-    examQuestions = getExams()[selectedExam - 1];
+    const allExams = getExams();
+    examQuestions = allExams[selectedExam - 1];
+
+    // Safety check — if exam couldn't be built, show clear error
+    if (!examQuestions || examQuestions.length === 0) {
+      console.error('Exam', selectedExam, 'could not be built. allExams =', allExams);
+      alert(`Exam ${selectedExam} could not be loaded. The questions file may not have updated correctly. Try refreshing the page (Ctrl+F5 or Cmd+Shift+R).`);
+      return;
+    }
+
     userAnswers = new Array(examQuestions.length).fill(null);
     currentIndex = 0;
     secondsLeft = TIME_PER_QUESTION;
