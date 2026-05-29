@@ -166,33 +166,37 @@
   }
 
   /**
-   * Build Exam 4 — uses ALL questions from the IRC practice document
-   * (indices 117-211) plus ALL 15 trap questions (102-116).
-   * Total: 110 questions, scored out of 100 points.
+   * Build Exam 4 — IRC 2018 Practice Set (85 unique questions).
    *
-   * Self-contained: builds indices internally so it works even if
-   * EXAM_4_REGULAR_INDICES / EXAM_4_TRAP_INDICES are missing from questions.js.
+   * Uses the 85 deduplicated IRC questions from EXAM_4_REGULAR_INDICES.
+   * Does NOT include trap questions (those are only in Exams 1-3).
+   *
+   * Self-contained: rebuilds indices internally if the global is missing,
+   * applying the same exclusion list to ensure 85 questions either way.
    */
   function buildExam4(seed) {
-    // Build indices internally — robust against missing globals
-    const regularIndices = [];
-    for (let i = 117; i <= 211; i++) {
-      if (QUESTION_BANK[i]) regularIndices.push(i);
-    }
-    const trapIndices = [];
-    for (let i = 102; i <= 116; i++) {
-      if (QUESTION_BANK[i]) trapIndices.push(i);
+    // Hard-coded exclusion list mirrors questions.js — ensures 85 questions
+    // even if questions.js wasn't updated alongside this file.
+    const EXCLUDED = new Set([163, 174, 183, 184, 186, 187, 189, 193, 199, 203]);
+
+    // Prefer the global if it exists; otherwise rebuild from scratch
+    let regularIndices;
+    if (typeof EXAM_4_REGULAR_INDICES !== 'undefined' && EXAM_4_REGULAR_INDICES.length > 0) {
+      regularIndices = EXAM_4_REGULAR_INDICES.filter(i => QUESTION_BANK[i]);
+    } else {
+      regularIndices = [];
+      for (let i = 117; i <= 211; i++) {
+        if (QUESTION_BANK[i] && !EXCLUDED.has(i)) regularIndices.push(i);
+      }
     }
 
     if (regularIndices.length === 0) {
-      console.error('Exam 4 ERROR: No IRC practice questions found in bank (expected indices 117-211). Check that questions.js is updated.');
+      console.error('Exam 4 ERROR: No IRC practice questions found in bank. Check that questions.js is updated.');
       return [];
     }
 
-    const regular = seededShuffle(regularIndices, seed);
-    const traps   = seededShuffle(trapIndices, seed + 99);
-    const combined = seededShuffle([...regular, ...traps], seed * 7);
-    return shuffleQuestionOptions(combined, seed);
+    const shuffled = seededShuffle(regularIndices, seed * 7);
+    return shuffleQuestionOptions(shuffled, seed);
   }
 
   /**
@@ -201,10 +205,10 @@
   function getExams() {
     if (examsCache) return examsCache;
     examsCache = [
-      buildExam(1001, TRAP_SETS[1]),  // Exam 1 — 85 Q
-      buildExam(2002, TRAP_SETS[2]),  // Exam 2 — 85 Q
-      buildExam(3003, TRAP_SETS[3]),  // Exam 3 — 85 Q
-      buildExam4(4004),               // Exam 4 — 110 Q (IRC practice + all traps)
+      buildExam(1001, TRAP_SETS[1]),  // Exam 1 — 85 Q (80 regular + 5 traps)
+      buildExam(2002, TRAP_SETS[2]),  // Exam 2 — 85 Q (80 regular + 5 traps)
+      buildExam(3003, TRAP_SETS[3]),  // Exam 3 — 85 Q (80 regular + 5 traps)
+      buildExam4(4004),               // Exam 4 — 85 Q (IRC practice, no traps)
     ];
     return examsCache;
   }
