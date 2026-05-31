@@ -87,11 +87,19 @@
    *      alternate across A/B/C/D (no 3-in-a-row same letter)
    */
   function buildExam(seed, trapIndices) {
-    // Step 1: pick regular questions by topic
+    // Indices reserved for OTHER exams — Exam 1 must NEVER pick these.
+    // (Falls back to empty Set if questions.js wasn't updated.)
+    const reservedOut = (typeof EXAM_1_RESERVED_OUT !== 'undefined')
+      ? EXAM_1_RESERVED_OUT
+      : new Set();
+
+    // Step 1: pick regular questions by topic, excluding reserved indices
     const regularIndices = [];
     TOPIC_DISTRIBUTION.forEach(({ range, count }) => {
       const topicPool = [];
-      for (let i = range[0]; i <= range[1]; i++) topicPool.push(i);
+      for (let i = range[0]; i <= range[1]; i++) {
+        if (!reservedOut.has(i)) topicPool.push(i);
+      }
       regularIndices.push(...seededShuffle(topicPool, seed + range[0]).slice(0, count));
     });
 
@@ -166,49 +174,79 @@
   }
 
   /**
-   * Build Exam 4 — IRC 2018 Practice Set (85 unique questions).
-   *
-   * Uses the 85 deduplicated IRC questions from EXAM_4_REGULAR_INDICES.
-   * Does NOT include trap questions (those are only in Exams 1-3).
-   *
-   * Self-contained: rebuilds indices internally if the global is missing,
-   * applying the same exclusion list to ensure 85 questions either way.
+   * Build Exam 2 — TSBPE CPE + IRC complement (85 questions).
+   *   - 74 NEW CPE questions (indices 212-285)
+   *   - 6 IRC complementary questions
+   *   - 5 trap questions (set 2)
+   * Self-contained: rebuilds indices internally if globals are missing.
    */
-  function buildExam4(seed) {
-    // Hard-coded exclusion list mirrors questions.js — ensures 85 questions
-    // even if questions.js wasn't updated alongside this file.
-    const EXCLUDED = new Set([163, 174, 183, 184, 186, 187, 189, 193, 199, 203]);
-
-    // Prefer the global if it exists; otherwise rebuild from scratch
+  function buildExam2(seed, trapIndices) {
     let regularIndices;
-    if (typeof EXAM_4_REGULAR_INDICES !== 'undefined' && EXAM_4_REGULAR_INDICES.length > 0) {
-      regularIndices = EXAM_4_REGULAR_INDICES.filter(i => QUESTION_BANK[i]);
+    if (typeof EXAM_2_REGULAR_INDICES !== 'undefined' && EXAM_2_REGULAR_INDICES.length > 0) {
+      regularIndices = EXAM_2_REGULAR_INDICES.filter(i => QUESTION_BANK[i]);
     } else {
+      // Fallback: build from scratch
       regularIndices = [];
-      for (let i = 117; i <= 211; i++) {
-        if (QUESTION_BANK[i] && !EXCLUDED.has(i)) regularIndices.push(i);
-      }
+      for (let i = 212; i <= 285; i++) if (QUESTION_BANK[i]) regularIndices.push(i);
+      [117, 122, 132, 142, 152, 162].forEach(i => { if (QUESTION_BANK[i]) regularIndices.push(i); });
     }
 
     if (regularIndices.length === 0) {
-      console.error('Exam 4 ERROR: No IRC practice questions found in bank. Check that questions.js is updated.');
+      console.error('Exam 2 ERROR: No CPE questions found in bank. Check that questions.js is updated.');
       return [];
     }
 
-    const shuffled = seededShuffle(regularIndices, seed * 7);
-    return shuffleQuestionOptions(shuffled, seed);
+    const combinedIndices = seededShuffle(
+      [...regularIndices, ...trapIndices],
+      seed * 7
+    );
+    return shuffleQuestionOptions(combinedIndices, seed);
   }
 
   /**
-   * Build all 4 exam versions on demand (cached).
+   * Build Exam 3 — Remaining IRC 2018 questions (85 total).
+   *   - 79 IRC questions not used by Exam 2
+   *   - 1 reserved original question (index 19, Definitions)
+   *   - 5 trap questions (set 3)
+   * Self-contained: rebuilds indices internally if globals are missing.
+   */
+  function buildExam3(seed, trapIndices) {
+    let regularIndices;
+    if (typeof EXAM_3_REGULAR_INDICES !== 'undefined' && EXAM_3_REGULAR_INDICES.length > 0) {
+      regularIndices = EXAM_3_REGULAR_INDICES.filter(i => QUESTION_BANK[i]);
+    } else {
+      // Fallback
+      const EXCLUDED = new Set([163, 174, 183, 184, 186, 187, 189, 193, 199, 203]);
+      const EXAM_2_IRC = new Set([117, 122, 132, 142, 152, 162]);
+      regularIndices = [];
+      for (let i = 117; i <= 211; i++) {
+        if (QUESTION_BANK[i] && !EXCLUDED.has(i) && !EXAM_2_IRC.has(i)) regularIndices.push(i);
+      }
+      if (QUESTION_BANK[19]) regularIndices.push(19);
+    }
+
+    if (regularIndices.length === 0) {
+      console.error('Exam 3 ERROR: No IRC questions found in bank. Check that questions.js is updated.');
+      return [];
+    }
+
+    const combinedIndices = seededShuffle(
+      [...regularIndices, ...trapIndices],
+      seed * 7
+    );
+    return shuffleQuestionOptions(combinedIndices, seed);
+  }
+
+  /**
+   * Build all 3 unique exam versions on demand (cached).
+   * Each exam has exactly 85 questions with ZERO overlap between exams.
    */
   function getExams() {
     if (examsCache) return examsCache;
     examsCache = [
-      buildExam(1001, TRAP_SETS[1]),  // Exam 1 — 85 Q (80 regular + 5 traps)
-      buildExam(2002, TRAP_SETS[2]),  // Exam 2 — 85 Q (80 regular + 5 traps)
-      buildExam(3003, TRAP_SETS[3]),  // Exam 3 — 85 Q (80 regular + 5 traps)
-      buildExam4(4004),               // Exam 4 — 85 Q (IRC practice, no traps)
+      buildExam(1001,  TRAP_SETS[1]),  // Exam 1 — 85 Q: original bank + traps set 1
+      buildExam2(2002, TRAP_SETS[2]),  // Exam 2 — 85 Q: CPE + IRC complement + traps set 2
+      buildExam3(3003, TRAP_SETS[3]),  // Exam 3 — 85 Q: IRC remaining + traps set 3
     ];
     return examsCache;
   }
