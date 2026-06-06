@@ -527,7 +527,29 @@
             ${explanationHTML}
           </div>
         </div>`;
-    }).join('');
+   }).join('');
+
+    // Share results buttons
+    const shareScore = points % 1 === 0 ? points : points.toFixed(1);
+    const shareText = `I scored ${shareScore}/100 on the Texas Tradesman Plumber practice exam! 🔧 Try it free at https://texasplumbingpreps.com`;
+    const shareUrl = 'https://texasplumbingpreps.com';
+
+    document.getElementById('btn-share-whatsapp').onclick = () =>
+      window.open(`https://wa.me/?text=${encodeURIComponent(shareText)}`, '_blank');
+
+    document.getElementById('btn-share-facebook').onclick = () =>
+      window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`, '_blank');
+
+    document.getElementById('btn-share-linkedin').onclick = () =>
+      window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank');
+
+    document.getElementById('btn-share-copy').onclick = () => {
+      navigator.clipboard.writeText(shareText).then(() => {
+        const btn = document.getElementById('btn-share-copy');
+        btn.textContent = '✅ Copied!';
+        setTimeout(() => btn.textContent = '🔗 Copy link', 2000);
+      });
+    };
   }
 
   function restartExam() {
